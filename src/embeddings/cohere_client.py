@@ -6,6 +6,7 @@ Supports Embed v3 and Rerank 3.5.
 from typing import Callable, List, Optional
 
 import cohere
+from cohere.core.api_error import ApiError
 import numpy as np
 from tenacity import (
     retry,
@@ -61,7 +62,7 @@ class CohereClient:
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
-        retry=retry_if_exception_type((cohere.errors.TooManyRequestsError,)),
+        retry=retry_if_exception_type((ApiError,)),
         before_sleep=lambda retry_state: logger.warning(
             f"Rate limited, retrying in {retry_state.next_action.sleep} seconds..."
         ),
@@ -102,8 +103,8 @@ class CohereClient:
                 )
                 all_embeddings.extend(response.embeddings)
 
-            except cohere.errors.BadRequestError as e:
-                logger.error(f"Bad request error: {e}")
+            except ApiError as e:
+                logger.error(f"API error: {e}")
                 # Return zero vectors for failed batch
                 dimension = len(all_embeddings[0]) if all_embeddings else 1024
                 all_embeddings.extend([[0.0] * dimension] * len(batch))
@@ -149,7 +150,7 @@ class CohereClient:
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
-        retry=retry_if_exception_type((cohere.errors.TooManyRequestsError,)),
+        retry=retry_if_exception_type((ApiError,)),
     )
     def rerank(
         self,

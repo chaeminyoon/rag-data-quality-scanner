@@ -1,0 +1,21 @@
+id,text,category
+doc_001,"RAG(Retrieval-Augmented Generation)는 대규모 언어 모델의 응답을 외부 지식으로 보강하는 기술입니다. 검색 시스템에서 관련 문서를 가져와 LLM의 컨텍스트에 제공함으로써 더 정확하고 사실에 기반한 답변을 생성할 수 있습니다.",AI
+doc_002,"임베딩(Embedding)은 텍스트를 고차원 벡터로 변환하는 기술입니다. 의미적으로 유사한 텍스트는 벡터 공간에서 가까운 위치에 배치됩니다. Cohere, OpenAI 등에서 임베딩 API를 제공합니다.",AI
+doc_003,"벡터 데이터베이스는 임베딩 벡터를 효율적으로 저장하고 검색하는 데이터베이스입니다. Pinecone, Weaviate, Milvus 등이 대표적입니다. 코사인 유사도를 사용해 유사한 벡터를 빠르게 찾습니다.",Database
+doc_004,"RAG(Retrieval-Augmented Generation)는 대규모 언어 모델의 응답을 외부 지식으로 보강하는 기술입니다. 검색 시스템에서 관련 문서를 가져와 LLM의 컨텍스트에 제공함으로써 더 정확하고 사실에 기반한 답변을 생성합니다.",AI
+doc_005,"Chunking은 긴 문서를 작은 조각으로 나누는 과정입니다. 적절한 청크 크기 선택이 RAG 성능에 중요합니다. 일반적으로 512~1024 토큰이 권장됩니다.",RAG
+doc_006,"LLM 환각(Hallucination)은 모델이 사실이 아닌 정보를 생성하는 현상입니다. RAG를 사용하면 외부 지식 소스를 참조하여 환각을 줄일 수 있습니다.",AI
+doc_007,"ㅎㅎ",etc
+doc_008,"Reranking은 초기 검색 결과를 재정렬하는 과정입니다. Cohere Rerank, ColBERT 등의 모델을 사용해 더 관련성 높은 문서를 상위에 배치합니다.",RAG
+doc_009,"Retrieval-Augmented Generation(RAG)은 외부 지식베이스를 활용해 LLM 응답을 개선하는 방법론입니다. 검색을 통해 관련 문서를 찾고 이를 프롬프트에 포함시킵니다.",AI
+doc_010,"Cohere는 NLP API를 제공하는 회사입니다. Embed v3는 검색용 임베딩에 최적화되어 있고, Rerank 3.5는 검색 결과 재정렬에 탁월한 성능을 보입니다.",AI
+doc_011,"테스트",etc
+doc_012,"Pinecone은 벡터 데이터베이스 서비스입니다. Serverless 옵션을 제공하며 대규모 벡터 검색에 최적화되어 있습니다. AWS, GCP 리전을 지원합니다.",Database
+doc_013,"임베딩은 텍스트를 벡터로 변환하는 기술입니다. 유사한 의미의 텍스트는 벡터 공간에서 가까이 위치합니다. 다양한 임베딩 모델이 있습니다.",AI
+doc_014,"NDCG(Normalized Discounted Cumulative Gain)는 검색 결과의 랭킹 품질을 측정하는 지표입니다. 관련 문서가 상위에 있을수록 높은 점수를 받습니다.",Metrics
+doc_015,"MRR(Mean Reciprocal Rank)은 첫 번째 관련 문서의 순위를 측정합니다. 사용자가 첫 결과에서 답을 찾는 것이 중요할 때 유용한 지표입니다.",Metrics
+doc_016,"Semantic Search는 키워드 매칭이 아닌 의미 기반 검색입니다. 임베딩을 사용해 쿼리와 문서의 의미적 유사성을 계산합니다.",Search
+doc_017,"!!!@#$%^&*()",etc
+doc_018,"Hybrid Search는 키워드 검색과 시맨틱 검색을 결합한 방식입니다. BM25와 벡터 검색 결과를 융합하여 더 나은 검색 품질을 제공합니다.",Search
+doc_019,"Fine-tuning은 사전 학습된 모델을 특정 도메인 데이터로 추가 학습하는 것입니다. 임베딩 모델도 도메인 특화 데이터로 파인튜닝하면 성능이 향상됩니다.",AI
+doc_020,"RAG는 Retrieval-Augmented Generation의 약자로 검색 보강 생성을 의미합니다. 외부 문서를 검색해서 LLM에 컨텍스트로 제공하는 방식입니다.",AI
