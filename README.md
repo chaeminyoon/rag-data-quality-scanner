@@ -23,65 +23,33 @@ Data quality issues in RAG (Retrieval-Augmented Generation) systems are a major 
 
 ---
 
-## Demo Screenshots
+## Demo
 
 ### Step 1: Upload Data
-<p>
-  <img src="docs/screenshots/01.png" width="280" />
-  <img src="docs/screenshots/02.png" width="280" />
-  <img src="docs/screenshots/03.png" width="280" />
-</p>
-<p>
-  <img src="docs/screenshots/04.png" width="280" />
-  <img src="docs/screenshots/05.png" width="280" />
-  <img src="docs/screenshots/06.png" width="280" />
-</p>
+Upload your PDF or CSV documents and ground truth queries.
+
+<img src="docs/screenshots/step1_upload.gif" alt="Upload Demo" width="600"/>
+
+---
 
 ### Step 2: Quality Scan
-<p>
-  <img src="docs/screenshots/07.png" width="280" />
-  <img src="docs/screenshots/08.png" width="280" />
-  <img src="docs/screenshots/09.png" width="280" />
-</p>
-<p>
-  <img src="docs/screenshots/10.png" width="280" />
-  <img src="docs/screenshots/11.png" width="280" />
-  <img src="docs/screenshots/12.png" width="280" />
-</p>
-<p>
-  <img src="docs/screenshots/13.png" width="280" />
-  <img src="docs/screenshots/14.png" width="280" />
-  <img src="docs/screenshots/15.png" width="280" />
-</p>
+Run quality scan to detect duplicates and analyze text quality.
+
+<img src="docs/screenshots/step2_scan.gif" alt="Quality Scan Demo" width="600"/>
+
+---
 
 ### Step 3: RAG Benchmark
-<p>
-  <img src="docs/screenshots/16.png" width="280" />
-  <img src="docs/screenshots/17.png" width="280" />
-  <img src="docs/screenshots/18.png" width="280" />
-</p>
-<p>
-  <img src="docs/screenshots/19.png" width="280" />
-  <img src="docs/screenshots/20.png" width="280" />
-  <img src="docs/screenshots/21.png" width="280" />
-</p>
-<p>
-  <img src="docs/screenshots/22.png" width="280" />
-  <img src="docs/screenshots/23.png" width="280" />
-  <img src="docs/screenshots/24.png" width="280" />
-</p>
+Compare retrieval performance before and after data cleaning.
+
+<img src="docs/screenshots/step3_benchmark.gif" alt="Benchmark Demo" width="600"/>
+
+---
 
 ### Step 4: Generate Report
-<p>
-  <img src="docs/screenshots/25.png" width="280" />
-  <img src="docs/screenshots/26.png" width="280" />
-  <img src="docs/screenshots/27.png" width="280" />
-</p>
-<p>
-  <img src="docs/screenshots/28.png" width="280" />
-  <img src="docs/screenshots/29.png" width="280" />
-  <img src="docs/screenshots/30.png" width="280" />
-</p>
+Download the analysis report in Markdown format.
+
+<img src="docs/screenshots/step4_report.gif" alt="Report Demo" width="600"/>
 
 ---
 
