@@ -1,6 +1,6 @@
-# 🔍 Embed Data Quality Scanner
+# Embed Data Quality Scanner
 
-**RAG 시스템의 데이터 품질을 진단하고 검색 정확도를 개선하는 도구**
+**A diagnostic tool for RAG data quality issues and search accuracy improvement**
 
 [![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://python.org)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.31+-red.svg)](https://streamlit.io)
@@ -8,129 +8,192 @@
 
 ---
 
-## 📌 프로젝트 개요
+## Overview
 
-RAG(Retrieval-Augmented Generation) 시스템에서 **데이터 품질 문제**는 검색 정확도 저하의 주요 원인입니다.  
-이 도구는 문서 데이터의 **중복, 노이즈, 품질 문제**를 자동으로 탐지하고 정제하여 검색 성능을 개선합니다.
+Data quality issues in RAG (Retrieval-Augmented Generation) systems are a major cause of decreased search accuracy. This tool automatically detects and cleans **duplicate content, noise, and quality issues** in your document data to improve retrieval performance.
 
-### 🎯 주요 기능
+### Key Features
 
-| 기능 | 설명 |
-|------|------|
-| **품질 스캔** | 임베딩 기반 중복 탐지 + 텍스트 품질 분석 |
-| **자동 클리닝** | 문제 문서 자동 제거 (전략 선택 가능) |
-| **벤치마크** | Before/After 검색 성능 비교 |
-| **리포트** | 분석 결과 Markdown 리포트 생성 |
+| Feature | Description |
+|---------|-------------|
+| **Quality Scan** | Embedding-based duplicate detection + text quality analysis |
+| **Auto Cleaning** | Automatic removal of problematic documents (configurable strategy) |
+| **Benchmark** | Before/After search performance comparison |
+| **Report** | Generate Markdown analysis reports |
 
 ---
 
-## 🚀 빠른 시작
+## Demo Screenshots
 
-### 1. 의존성 설치
+### Step 1: Upload Data
+<p>
+  <img src="docs/screenshots/01.png" width="280" />
+  <img src="docs/screenshots/02.png" width="280" />
+  <img src="docs/screenshots/03.png" width="280" />
+</p>
+<p>
+  <img src="docs/screenshots/04.png" width="280" />
+  <img src="docs/screenshots/05.png" width="280" />
+  <img src="docs/screenshots/06.png" width="280" />
+</p>
+
+### Step 2: Quality Scan
+<p>
+  <img src="docs/screenshots/07.png" width="280" />
+  <img src="docs/screenshots/08.png" width="280" />
+  <img src="docs/screenshots/09.png" width="280" />
+</p>
+<p>
+  <img src="docs/screenshots/10.png" width="280" />
+  <img src="docs/screenshots/11.png" width="280" />
+  <img src="docs/screenshots/12.png" width="280" />
+</p>
+<p>
+  <img src="docs/screenshots/13.png" width="280" />
+  <img src="docs/screenshots/14.png" width="280" />
+  <img src="docs/screenshots/15.png" width="280" />
+</p>
+
+### Step 3: RAG Benchmark
+<p>
+  <img src="docs/screenshots/16.png" width="280" />
+  <img src="docs/screenshots/17.png" width="280" />
+  <img src="docs/screenshots/18.png" width="280" />
+</p>
+<p>
+  <img src="docs/screenshots/19.png" width="280" />
+  <img src="docs/screenshots/20.png" width="280" />
+  <img src="docs/screenshots/21.png" width="280" />
+</p>
+<p>
+  <img src="docs/screenshots/22.png" width="280" />
+  <img src="docs/screenshots/23.png" width="280" />
+  <img src="docs/screenshots/24.png" width="280" />
+</p>
+
+### Step 4: Generate Report
+<p>
+  <img src="docs/screenshots/25.png" width="280" />
+  <img src="docs/screenshots/26.png" width="280" />
+  <img src="docs/screenshots/27.png" width="280" />
+</p>
+<p>
+  <img src="docs/screenshots/28.png" width="280" />
+  <img src="docs/screenshots/29.png" width="280" />
+  <img src="docs/screenshots/30.png" width="280" />
+</p>
+
+---
+
+## Quick Start
+
+### 1. Install Dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2. API 키 설정
+### 2. Configure API Keys
 
 ```bash
 cp .env.example .env
 ```
 
-`.env` 파일에 API 키 입력:
+Edit `.env` file:
 ```env
 COHERE_API_KEY=your-cohere-api-key
 PINECONE_API_KEY=your-pinecone-api-key
 ```
 
-### 3. 앱 실행
+### 3. Run Application
 
 ```bash
 python -m streamlit run src/main.py
 ```
 
-브라우저에서 http://localhost:8501 접속
+Open http://localhost:8501 in your browser
 
 ---
 
-## 📊 사용 방법
+## Usage
 
-### Step 1: 데이터 업로드
+### Step 1: Upload Data
 
-- **문서 파일**: PDF 또는 CSV 업로드
-- **Ground Truth**: 벤치마크용 쿼리 CSV (선택)
+- **Document files**: Upload PDF or CSV
+- **Ground Truth**: Query CSV for benchmarking (optional)
 
 ```csv
-# documents.csv 형식
+# documents.csv format
 id,text,category
-doc_001,"RAG는 대규모 언어 모델의 응답을...",AI
+doc_001,"RAG is a technique that augments LLM responses...",AI
 ```
 
 ```csv
-# ground_truth.csv 형식
+# ground_truth.csv format
 query_id,query,relevant_doc_ids
-q001,"RAG가 무엇인가요?","doc_001,doc_006"
+q001,"What is RAG?","doc_001,doc_006"
 ```
 
-### Step 2: 품질 스캔
+### Step 2: Quality Scan
 
-"Run Quality Scan" 클릭 시:
-1. Cohere Embed v3로 문서 임베딩 생성
-2. 코사인 유사도로 중복 탐지
-3. 텍스트 품질 분석 (길이, 특수문자 등)
-4. 자동 클리닝 수행
+Click "Run Quality Scan" to:
+1. Generate document embeddings with Cohere Embed v3
+2. Detect duplicates using cosine similarity
+3. Analyze text quality (length, special characters, etc.)
+4. Perform automatic cleaning
 
-### Step 3: RAG 벤치마크
+### Step 3: RAG Benchmark
 
-"Run Benchmark" 클릭 시:
-- 원본 vs 정제 데이터 성능 비교
-- NDCG@10, Hit Rate@10 측정
-- Cohere Rerank 적용 효과 확인
+Click "Run Benchmark" to:
+- Compare original vs cleaned data performance
+- Measure NDCG@10, Hit Rate@10
+- Evaluate Cohere Rerank effectiveness
 
-### Step 4: 리포트 생성
+### Step 4: Generate Report
 
-분석 결과를 Markdown으로 다운로드
+Download analysis results as Markdown
 
 ---
 
-## 📁 프로젝트 구조
+## Project Structure
 
 ```
 P01_CSE_RAG/
 ├── src/
-│   ├── main.py              # Streamlit 앱
+│   ├── main.py              # Streamlit app
 │   ├── embeddings/
-│   │   └── cohere_client.py # Cohere API 클라이언트
+│   │   └── cohere_client.py # Cohere API client
 │   ├── vectordb/
-│   │   └── pinecone_client.py # Pinecone 클라이언트
+│   │   └── pinecone_client.py # Pinecone client
 │   ├── scanner/
-│   │   ├── scanner.py       # 스캔 오케스트레이터
-│   │   ├── noise_detector.py # 중복 탐지
-│   │   ├── text_analyzer.py  # 텍스트 분석
-│   │   └── cleaner.py       # 데이터 클리닝
+│   │   ├── scanner.py       # Scan orchestrator
+│   │   ├── noise_detector.py # Duplicate detection
+│   │   ├── text_analyzer.py  # Text analysis
+│   │   └── cleaner.py       # Data cleaning
 │   ├── evaluator/
-│   │   ├── evaluator.py     # RAG 평가
-│   │   ├── metrics.py       # NDCG, MRR 등
+│   │   ├── evaluator.py     # RAG evaluation
+│   │   ├── metrics.py       # NDCG, MRR, etc.
 │   │   └── reranker.py      # Cohere Rerank
 │   ├── ingest/
-│   │   ├── csv_loader.py    # CSV 로더
-│   │   ├── pdf_parser.py    # PDF 파서
-│   │   └── chunker.py       # 텍스트 청킹
+│   │   ├── csv_loader.py    # CSV loader
+│   │   ├── pdf_parser.py    # PDF parser
+│   │   └── chunker.py       # Text chunking
 │   └── report/
-│       └── generator.py     # 리포트 생성
+│       └── generator.py     # Report generation
 ├── config/
-│   ├── settings.py          # 환경 설정
-│   └── logging_config.py    # 로깅 설정
+│   ├── settings.py          # Configuration
+│   └── logging_config.py    # Logging config
 ├── data/
-│   └── sample/              # 샘플 데이터
-├── .env.example             # 환경 변수 예시
-└── requirements.txt         # 의존성
+│   └── sample/              # Sample data
+├── docs/
+│   └── screenshots/         # Demo screenshots
+├── .env.example             # Environment variables template
+└── requirements.txt         # Dependencies
 ```
 
 ---
 
-## 🔧 시스템 아키텍처
+## System Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -143,9 +206,9 @@ P01_CSE_RAG/
     ┌─────────┐    ┌─────────┐    ┌─────────────┐
     │ SCANNER │    │ INGEST  │    │  EVALUATOR  │
     │─────────│    │─────────│    │─────────────│
-    │ • 중복탐지│    │ • CSV   │    │ • NDCG      │
-    │ • 품질분석│    │ • PDF   │    │ • Rerank    │
-    │ • 클리닝 │    │ • Chunk │    │ • 비교평가   │
+    │ Noise   │    │ CSV     │    │ NDCG        │
+    │ Detector│    │ PDF     │    │ Rerank      │
+    │ Cleaner │    │ Chunk   │    │ Comparison  │
     └─────────┘    └─────────┘    └─────────────┘
          │               │               │
          └───────────────┴───────────────┘
@@ -154,80 +217,80 @@ P01_CSE_RAG/
          ▼                               ▼
     ┌─────────────┐              ┌─────────────┐
     │   COHERE    │              │  PINECONE   │
-    │ • Embed v3  │              │ • Vector DB │
-    │ • Rerank 3.5│              │ • Namespace │
+    │ Embed v3    │              │ Vector DB   │
+    │ Rerank 3.5  │              │ Namespace   │
     └─────────────┘              └─────────────┘
 ```
 
 ---
 
-## 📈 성능 개선 예시
+## Performance Results
 
 | Metric | Before | After | Improvement |
 |--------|--------|-------|-------------|
 | NDCG@10 | 31.22% | 88.42% | **+183.2%** |
 | Hit Rate@10 | 80% | 100% | **+25%** |
-| Documents | 20 | 15 | -5 (정제) |
+| Documents | 20 | 15 | -5 (cleaned) |
 
 ---
 
-## ⚙️ 설정 옵션
+## Configuration
 
-### 사이드바 설정
+### Sidebar Settings
 
-| 옵션 | 기본값 | 설명 |
-|------|--------|------|
-| Duplicate Threshold | 0.92 | 중복 판정 유사도 임계값 |
-| Cleaning Strategy | MODERATE | 클리닝 강도 |
+| Option | Default | Description |
+|--------|---------|-------------|
+| Duplicate Threshold | 0.92 | Similarity threshold for duplicate detection |
+| Cleaning Strategy | MODERATE | Cleaning aggressiveness level |
 
-### 클리닝 전략
+### Cleaning Strategies
 
-| 전략 | 제거 대상 |
-|------|----------|
-| CONSERVATIVE | 완전 중복만 |
-| MODERATE | 중복 + 짧은 문서 + 특수문자 과다 |
-| AGGRESSIVE | 위 모두 + 저품질 문서 |
-
----
-
-## 🔑 필요한 API
-
-| 서비스 | 용도 | 무료 티어 |
-|--------|------|----------|
-| [Cohere](https://dashboard.cohere.com) | 임베딩 & Rerank | ✅ Trial |
-| [Pinecone](https://app.pinecone.io) | 벡터 DB | ✅ Starter |
+| Strategy | Target |
+|----------|--------|
+| CONSERVATIVE | Exact duplicates only |
+| MODERATE | Duplicates + short docs + high special char ratio |
+| AGGRESSIVE | All above + low quality documents |
 
 ---
 
-## 📚 활용 시나리오
+## Required APIs
 
-### 1. CSE 티켓 해결
-고객사 RAG 챗봇의 검색 정확도 저하 원인을 진단하고 해결 방안 제시
-
-### 2. 데이터 파이프라인 검증
-신규 데이터 수집 시 품질 문제를 사전에 탐지하여 프로덕션 데이터 품질 보장
-
-### 3. RAG 성능 벤치마킹
-다양한 전처리 전략의 효과를 정량적으로 비교 평가
+| Service | Purpose | Free Tier |
+|---------|---------|-----------|
+| [Cohere](https://dashboard.cohere.com) | Embedding & Rerank | Available |
+| [Pinecone](https://app.pinecone.io) | Vector DB | Starter plan |
 
 ---
 
-## 🛠️ 기술 스택
+## Use Cases
+
+### 1. CSE Ticket Resolution
+Diagnose root causes of RAG chatbot accuracy issues and provide solutions
+
+### 2. Data Pipeline Validation
+Detect quality issues before data reaches production to ensure data quality
+
+### 3. RAG Performance Benchmarking
+Quantitatively compare effects of different preprocessing strategies
+
+---
+
+## Tech Stack
 
 - **Frontend**: Streamlit, Plotly
 - **Embedding**: Cohere Embed v3
 - **Reranking**: Cohere Rerank 3.5
 - **Vector DB**: Pinecone Serverless
-- **PDF**: PyMuPDF (fitz)
+- **PDF Processing**: PyMuPDF (fitz)
 
 ---
 
-## 📄 라이선스
+## License
 
 MIT License
 
 ---
 
-## 🤝 기여
+## Contributing
 
-이슈와 PR을 환영합니다!
+Issues and Pull Requests are welcome!
