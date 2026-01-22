@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ticket Resolution Report</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #fff;
+            padding: 40px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 3px solid #667eea;
+        }
+
+        .header h1 {
+            color: #1E3A5F;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header .subtitle {
+            color: #6B7280;
+            font-size: 14px;
+        }
+
+        .meta-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #F9FAFB;
+            border-radius: 8px;
+        }
+
+        .meta-info div {
+            text-align: center;
+        }
+
+        .meta-info label {
+            display: block;
+            font-size: 12px;
+            color: #6B7280;
+            text-transform: uppercase;
+        }
+
+        .meta-info value {
+            display: block;
+            font-size: 16px;
+            font-weight: bold;
+            color: #1E3A5F;
+        }
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        .section h2 {
+            color: #1E3A5F;
+            font-size: 20px;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #E5E7EB;
+        }
+
+        .metric-cards {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .metric-card {
+            flex: 1;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .metric-card.original {
+            background: linear-gradient(135deg, #EF4444 0%, #F87171 100%);
+            color: white;
+        }
+
+        .metric-card.cleaned {
+            background: linear-gradient(135deg, #10B981 0%, #34D399 100%);
+            color: white;
+        }
+
+        .metric-card.rerank {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .metric-card .value {
+            font-size: 36px;
+            font-weight: bold;
+            display: block;
+        }
+
+        .metric-card .label {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .metric-card .improvement {
+            font-size: 14px;
+            margin-top: 5px;
+            font-weight: bold;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #E5E7EB;
+        }
+
+        th {
+            background: #F9FAFB;
+            font-weight: 600;
+            color: #1E3A5F;
+        }
+
+        tr:hover {
+            background: #F9FAFB;
+        }
+
+        .highlight {
+            color: #10B981;
+            font-weight: bold;
+        }
+
+        .warning {
+            color: #F59E0B;
+            font-weight: bold;
+        }
+
+        .error {
+            color: #EF4444;
+            font-weight: bold;
+        }
+
+        .recommendations {
+            background: #EFF6FF;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #3B82F6;
+        }
+
+        .recommendations h3 {
+            color: #1E3A5F;
+            margin-bottom: 15px;
+        }
+
+        .recommendations ul {
+            list-style: none;
+        }
+
+        .recommendations li {
+            padding: 8px 0;
+            padding-left: 25px;
+            position: relative;
+        }
+
+        .recommendations li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #10B981;
+            font-weight: bold;
+        }
+
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #E5E7EB;
+            text-align: center;
+            color: #6B7280;
+            font-size: 12px;
+        }
+
+        @media print {
+            body {
+                padding: 20px;
+            }
+            .metric-cards {
+                page-break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>TICKET RESOLUTION REPORT</h1>
+        <p class="subtitle">Embed Data Quality Scanner - RAG Accuracy Analysis</p>
+    </div>
+
+    <div class="meta-info">
+        <div>
+            <label>Generated</label>
+            <value>{{ generated_at }}</value>
+        </div>
+        <div>
+            <label>Customer</label>
+            <value>{{ customer_name or "N/A" }}</value>
+        </div>
+        <div>
+            <label>Ticket ID</label>
+            <value>{{ ticket_id or "N/A" }}</value>
+        </div>
+        <div>
+            <label>Status</label>
+            <value class="highlight">RESOLVED</value>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Executive Summary</h2>
+        <div class="metric-cards">
+            <div class="metric-card original">
+                <span class="value">{{ "%.0f"|format(original_ndcg * 100) }}%</span>
+                <span class="label">Original NDCG@10</span>
+            </div>
+            <div class="metric-card cleaned">
+                <span class="value">{{ "%.0f"|format(cleaned_ndcg * 100) }}%</span>
+                <span class="label">Cleaned NDCG@10</span>
+                <span class="improvement">+{{ "%.1f"|format(ndcg_improvement) }}%</span>
+            </div>
+            <div class="metric-card rerank">
+                <span class="value">{{ "%.0f"|format(rerank_ndcg * 100) }}%</span>
+                <span class="label">With Rerank NDCG@10</span>
+                <span class="improvement">+{{ "%.1f"|format(rerank_improvement) }}%</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Data Quality Analysis</h2>
+        <table>
+            <tr>
+                <th>Metric</th>
+                <th>Value</th>
+                <th>Status</th>
+            </tr>
+            <tr>
+                <td>Total Documents</td>
+                <td>{{ total_documents }}</td>
+                <td>-</td>
+            </tr>
+            <tr>
+                <td>Documents Cleaned</td>
+                <td>{{ cleaned_documents }}</td>
+                <td class="highlight">{{ "%.1f"|format(cleaning_percentage) }}% retained</td>
+            </tr>
+            <tr>
+                <td>Duplicates Removed</td>
+                <td>{{ duplicates_removed }}</td>
+                <td class="warning">{{ "%.1f"|format(duplicate_percentage) }}% of corpus</td>
+            </tr>
+            <tr>
+                <td>Quality Issues</td>
+                <td>{{ quality_issues }}</td>
+                <td class="{{ 'error' if quality_issues > 100 else 'warning' }}">{{ quality_issue_percentage }}% of corpus</td>
+            </tr>
+            <tr>
+                <td>Overall Quality Score</td>
+                <td>{{ "%.0f"|format(quality_score * 100) }}%</td>
+                <td class="{{ 'highlight' if quality_score >= 0.7 else 'warning' }}">{{ 'Good' if quality_score >= 0.7 else 'Needs Improvement' }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>Root Cause Analysis</h2>
+        <table>
+            <tr>
+                <th>Issue Type</th>
+                <th>Count</th>
+                <th>Impact</th>
+            </tr>
+            {% for issue_type, count in issues_breakdown.items() %}
+            <tr>
+                <td>{{ issue_type | replace("_", " ") | title }}</td>
+                <td>{{ count }}</td>
+                <td>{{ "%.1f"|format(count / total_documents * 100) }}%</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+
+    {% if per_query_results %}
+    <div class="section">
+        <h2>Per-Query Performance</h2>
+        <table>
+            <tr>
+                <th>Query</th>
+                <th>Original</th>
+                <th>Cleaned</th>
+                <th>With Rerank</th>
+                <th>Improvement</th>
+            </tr>
+            {% for result in per_query_results[:10] %}
+            <tr>
+                <td>{{ result.query[:50] }}...</td>
+                <td>{{ "%.2f"|format(result.original_ndcg) }}</td>
+                <td>{{ "%.2f"|format(result.cleaned_ndcg) }}</td>
+                <td>{{ "%.2f"|format(result.rerank_ndcg) }}</td>
+                <td class="highlight">+{{ "%.0f"|format((result.rerank_ndcg - result.original_ndcg) / result.original_ndcg * 100 if result.original_ndcg > 0 else 0) }}%</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+    {% endif %}
+
+    <div class="section">
+        <h2>Recommendations</h2>
+        <div class="recommendations">
+            <h3>Actions to Prevent Future Issues:</h3>
+            <ul>
+                <li><strong>Implement deduplication</strong> in data ingestion pipeline to prevent future duplicates</li>
+                <li><strong>Add minimum length validation</strong> (10+ characters) to filter meaningless content</li>
+                <li><strong>Use Cohere Rerank 3.5</strong> in production retrieval for optimal accuracy</li>
+                <li><strong>Schedule monthly data quality audits</strong> using this scanner tool</li>
+                <li><strong>Monitor RAG accuracy</strong> with automated testing against ground truth queries</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>Report generated by <strong>Embed Data Quality Scanner</strong></p>
+        <p>Powered by Cohere Embed v3 & Rerank 3.5 | Pinecone Vector Database</p>
+    </div>
+</body>
+</html>
