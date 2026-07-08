@@ -147,12 +147,14 @@ def evaluate_arm(
     k: int,
     rerank_candidates: int,
     full_ground_truth: Optional[Dict[str, Set[str]]] = None,
+    retrieval_mode: str = "dense",
 ) -> Dict:
     """Evaluate one ablation cell; returns per-query and aggregate metrics."""
     result = evaluator.evaluate(
         queries=queries,
         namespace=namespace,
         use_rerank=use_rerank,
+        retrieval_mode=retrieval_mode,
         top_k_retrieval=rerank_candidates if use_rerank else k,
     )
 
@@ -175,6 +177,15 @@ def evaluate_arm(
             continue
         lo, hi = bootstrap_ci(vals)
         agg[name] = {"mean": float(np.mean(vals)), "ci95": [lo, hi]}
+
+    # 쿼리 유형별(NDCG) 분해: q_=자연어 속성형, qc_=코드 조회형
+    by_type = {}
+    for qr in result.query_results:
+        qtype = "code" if qr.query_id.startswith("qc_") else "attribute"
+        by_type.setdefault(qtype, []).append(qr.metrics.ndcg_at_k)
+    agg["ndcg_by_query_type"] = {
+        t: float(np.mean(v)) for t, v in sorted(by_type.items())
+    }
     return {"aggregate": agg, "per_query": per_query, "query_results": result.query_results}
 
 
@@ -185,6 +196,8 @@ def main():
                         choices=["conservative", "moderate", "aggressive"])
     parser.add_argument("--k", type=int, default=10)
     parser.add_argument("--rerank-candidates", type=int, default=50)
+    parser.add_argument("--dedup-method", default="two_stage",
+                        choices=["embedding", "two_stage"])
     parser.add_argument("--out", default="reports")
     args = parser.parse_args()
 
@@ -193,7 +206,7 @@ def main():
 
     # 1) 스캔 + 클리닝
     t0 = time.time()
-    scanner = DataQualityScanner()
+    scanner = DataQualityScanner(dedup_method=args.dedup_method)
     scan_result, cleaned_result = scanner.scan_and_clean(
         documents=documents, strategy=CleaningStrategy(args.strategy)
     )
@@ -240,19 +253,24 @@ def main():
 
     cells = {}
     for corpus in ["original", "cleaned"]:
-        for rerank in [False, True]:
-            name = f"{corpus}{'+rerank' if rerank else ''}"
-            t0 = time.time()
-            cells[name] = evaluate_arm(
-                evaluator, arm_queries[corpus], corpus, rerank, labels,
-                k=args.k, rerank_candidates=args.rerank_candidates,
-                full_ground_truth=full_gt,
-            )
+        for mode in ["dense", "hybrid"]:
+            for rerank in [False, True]:
+                name = f"{corpus}/{mode}{'+rerank' if rerank else ''}"
+                t0 = time.time()
+                cells[name] = evaluate_arm(
+                    evaluator, arm_queries[corpus], corpus, rerank, labels,
+                    k=args.k, rerank_candidates=args.rerank_candidates,
+                    full_ground_truth=full_gt, retrieval_mode=mode,
+                )
             a = cells[name]["aggregate"]
-            print(f"[{name:>18}] {time.time()-t0:.1f}s | " + " | ".join(
-                f"{m}: {v['mean']:.3f} [{v['ci95'][0]:.3f},{v['ci95'][1]:.3f}]"
-                for m, v in a.items()
-            ))
+            metric_str = " | ".join(
+                f"{m}: {v['mean']:.3f}"
+                for m, v in a.items() if isinstance(v, dict) and "mean" in v
+            )
+            type_str = " ".join(
+                f"{t}={x:.3f}" for t, x in a.get("ndcg_by_query_type", {}).items()
+            )
+            print(f"[{name:>24}] {time.time()-t0:.1f}s | {metric_str} | ndcg({type_str})")
 
     # 4) 리포트 저장
     os.makedirs(args.out, exist_ok=True)
@@ -274,7 +292,7 @@ def main():
             name: cell["aggregate"] for name, cell in cells.items()
         },
     }
-    out_path = f"{args.out}/benchmark_{args.strategy}_k{args.k}.json"
+    out_path = f"{args.out}/benchmark_{args.strategy}_{args.dedup_method}_k{args.k}.json"
     with open(out_path, "w") as f:
         json.dump(report, f, ensure_ascii=False, indent=2)
     print(f"\n리포트 저장: {out_path}")

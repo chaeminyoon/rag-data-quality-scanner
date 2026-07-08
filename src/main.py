@@ -206,7 +206,17 @@ def render_upload_page():
                 if file.name.endswith(".pdf"):
                     parser = PDFParser()
                     docs = parser.parse(file, filename=file.name)
-                    documents.extend([{"id": d.id, "text": d.text, "metadata": d.metadata} for d in docs])
+                    # 긴 PDF 문서는 문장 경계 기준으로 청킹한다.
+                    # 청크 메타데이터에 소스 파일명·부모 문서 id·청크 번호가 유지됨
+                    # (Barnett et al. CAIN'24 Table 2: 메타데이터가 검색·추출 개선)
+                    chunker = TextChunker()
+                    short_docs = [d for d in docs if len(d.text) <= chunker.chunk_size]
+                    long_docs = [d for d in docs if len(d.text) > chunker.chunk_size]
+                    chunked = chunker.chunk(long_docs, strategy=ChunkStrategy.SENTENCE)
+                    for d in short_docs + chunked:
+                        documents.append(
+                            {"id": d.id, "text": d.text, "metadata": d.metadata}
+                        )
                 elif file.name.endswith(".csv"):
                     # Show column mapping
                     st.markdown("#### CSV Column Mapping")
@@ -385,25 +395,28 @@ def render_scan_page():
         st.caption("Red areas indicate potential duplicates (high similarity)")
 
         heatmap_data = scan_result.noise_report.similarity_matrix
-        # Subsample for display
-        max_display = 50
-        if len(heatmap_data) > max_display:
-            indices = np.linspace(0, len(heatmap_data) - 1, max_display, dtype=int)
-            display_matrix = heatmap_data[np.ix_(indices, indices)]
+        if heatmap_data is None:
+            st.info("Similarity heatmap is skipped for large corpora (two-stage dedup).")
         else:
-            display_matrix = heatmap_data
+            # Subsample for display
+            max_display = 50
+            if len(heatmap_data) > max_display:
+                indices = np.linspace(0, len(heatmap_data) - 1, max_display, dtype=int)
+                display_matrix = heatmap_data[np.ix_(indices, indices)]
+            else:
+                display_matrix = heatmap_data
 
-        fig = px.imshow(
-            display_matrix,
-            color_continuous_scale="RdBu_r",
-            zmin=0,
-            zmax=1,
-        )
-        fig.update_layout(
-            margin=dict(l=20, r=20, t=30, b=20),
-            height=400,
-        )
-        st.plotly_chart(fig, use_container_width=True)
+            fig = px.imshow(
+                display_matrix,
+                color_continuous_scale="RdBu_r",
+                zmin=0,
+                zmax=1,
+            )
+            fig.update_layout(
+                margin=dict(l=20, r=20, t=30, b=20),
+                height=400,
+            )
+            st.plotly_chart(fig, use_container_width=True)
 
         # Cleaning summary
         if cleaned_result:
