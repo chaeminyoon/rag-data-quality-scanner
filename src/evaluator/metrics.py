@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from typing import Dict, List, Set
 
 import numpy as np
-from sklearn.metrics import ndcg_score
 
 from config import get_logger
 
@@ -63,9 +62,16 @@ class MetricsCalculator:
         k: int = None,
     ) -> float:
         """
-        Calculate NDCG@k.
+        Calculate NDCG@k (binary relevance, standard definition).
 
-        NDCG measures ranking quality, accounting for position of relevant items.
+        DCG@k  = sum over retrieved positions i (1-indexed) of rel_i / log2(i + 1)
+        IDCG@k = DCG of the ideal ranking over ALL relevant documents,
+                 i.e. min(len(relevant_ids), k) relevant docs at the top.
+
+        Note: IDCG is normalized against the full relevant set, not just the
+        retrieved list. (The previous implementation normalized only within
+        the retrieved list, so retrieving 1 of 3 relevant docs at rank 1
+        scored a perfect 1.0 — inflating results.)
 
         Args:
             retrieved_ids: Ordered list of retrieved document IDs
@@ -81,16 +87,15 @@ class MetricsCalculator:
         if not relevant_ids or not retrieved:
             return 0.0
 
-        # Create relevance scores (1 for relevant, 0 for not)
-        y_true = [[1 if doc_id in relevant_ids else 0 for doc_id in retrieved]]
+        dcg = sum(
+            1.0 / np.log2(i + 2)  # i is 0-indexed -> rank i+1 -> log2(rank+1)
+            for i, doc_id in enumerate(retrieved)
+            if doc_id in relevant_ids
+        )
+        ideal_hits = min(len(relevant_ids), k)
+        idcg = sum(1.0 / np.log2(i + 2) for i in range(ideal_hits))
 
-        # Create predicted scores (decreasing by position)
-        y_score = [[len(retrieved) - i for i in range(len(retrieved))]]
-
-        try:
-            return ndcg_score(y_true, y_score, k=k)
-        except ValueError:
-            return 0.0
+        return dcg / idcg if idcg > 0 else 0.0
 
     def hit_rate_at_k(
         self,

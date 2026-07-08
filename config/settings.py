@@ -13,17 +13,39 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     """Application settings with validation."""
 
-    # Cohere Configuration
-    COHERE_API_KEY: SecretStr = Field(..., description="Cohere API key")
+    # Backend selection: "local" runs fully offline (sentence-transformers + in-memory
+    # vector store); "cohere"/"pinecone" require API keys.
+    EMBEDDING_BACKEND: str = Field(
+        default="local", description="Embedding backend: 'local' or 'cohere'"
+    )
+    VECTOR_BACKEND: str = Field(
+        default="local", description="Vector store backend: 'local' or 'pinecone'"
+    )
+    RERANK_BACKEND: str = Field(
+        default="local", description="Rerank backend: 'local', 'cohere', or 'none'"
+    )
+
+    # Local model configuration (multilingual — handles Korean/English)
+    LOCAL_EMBED_MODEL: str = Field(
+        default="intfloat/multilingual-e5-small",
+        description="sentence-transformers embedding model",
+    )
+    LOCAL_RERANK_MODEL: str = Field(
+        default="cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
+        description="sentence-transformers cross-encoder rerank model",
+    )
+
+    # Cohere Configuration (optional — only needed when EMBEDDING_BACKEND="cohere")
+    COHERE_API_KEY: Optional[SecretStr] = Field(default=None, description="Cohere API key")
     COHERE_EMBED_MODEL: str = Field(
-        default="embed-english-v3.0", description="Cohere embedding model"
+        default="embed-multilingual-v3.0", description="Cohere embedding model"
     )
     COHERE_RERANK_MODEL: str = Field(
         default="rerank-v3.5", description="Cohere rerank model"
     )
 
-    # Pinecone Configuration
-    PINECONE_API_KEY: SecretStr = Field(..., description="Pinecone API key")
+    # Pinecone Configuration (optional — only needed when VECTOR_BACKEND="pinecone")
+    PINECONE_API_KEY: Optional[SecretStr] = Field(default=None, description="Pinecone API key")
     PINECONE_ENVIRONMENT: str = Field(
         default="us-east-1", description="Pinecone environment/region"
     )
@@ -75,6 +97,27 @@ class Settings(BaseSettings):
             raise ValueError(f"EMBED_DIMENSION must be one of {valid_dimensions}")
         return v
 
+    @field_validator("EMBEDDING_BACKEND")
+    @classmethod
+    def validate_embedding_backend(cls, v: str) -> str:
+        if v not in ("local", "cohere"):
+            raise ValueError("EMBEDDING_BACKEND must be 'local' or 'cohere'")
+        return v
+
+    @field_validator("VECTOR_BACKEND")
+    @classmethod
+    def validate_vector_backend(cls, v: str) -> str:
+        if v not in ("local", "pinecone"):
+            raise ValueError("VECTOR_BACKEND must be 'local' or 'pinecone'")
+        return v
+
+    @field_validator("RERANK_BACKEND")
+    @classmethod
+    def validate_rerank_backend(cls, v: str) -> str:
+        if v not in ("local", "cohere", "none"):
+            raise ValueError("RERANK_BACKEND must be 'local', 'cohere', or 'none'")
+        return v
+
 
 @lru_cache()
 def get_settings() -> Settings:
@@ -89,32 +132,38 @@ def validate_api_keys() -> tuple[bool, bool]:
     Returns:
         Tuple of (cohere_valid, pinecone_valid)
     """
+    import logging
+
+    logger = logging.getLogger("config.settings")
+
     settings = get_settings()
     cohere_valid = False
     pinecone_valid = False
 
-    # Test Cohere
-    try:
-        import cohere
+    # Test Cohere (only if a key is configured)
+    if settings.COHERE_API_KEY is not None:
+        try:
+            import cohere
 
-        client = cohere.Client(api_key=settings.COHERE_API_KEY.get_secret_value())
-        client.embed(
-            texts=["test"],
-            model=settings.COHERE_EMBED_MODEL,
-            input_type="search_document",
-        )
-        cohere_valid = True
-    except Exception:
-        pass
+            client = cohere.Client(api_key=settings.COHERE_API_KEY.get_secret_value())
+            client.embed(
+                texts=["test"],
+                model=settings.COHERE_EMBED_MODEL,
+                input_type="search_document",
+            )
+            cohere_valid = True
+        except Exception as e:
+            logger.warning(f"Cohere API key validation failed: {e}")
 
-    # Test Pinecone
-    try:
-        from pinecone import Pinecone
+    # Test Pinecone (only if a key is configured)
+    if settings.PINECONE_API_KEY is not None:
+        try:
+            from pinecone import Pinecone
 
-        pc = Pinecone(api_key=settings.PINECONE_API_KEY.get_secret_value())
-        pc.list_indexes()
-        pinecone_valid = True
-    except Exception:
-        pass
+            pc = Pinecone(api_key=settings.PINECONE_API_KEY.get_secret_value())
+            pc.list_indexes()
+            pinecone_valid = True
+        except Exception as e:
+            logger.warning(f"Pinecone API key validation failed: {e}")
 
     return cohere_valid, pinecone_valid

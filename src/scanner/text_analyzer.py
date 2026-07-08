@@ -109,6 +109,7 @@ class TextAnalyzer:
         max_length: Optional[int] = None,
         min_word_count: int = 3,
         max_special_char_ratio: float = 0.1,
+        max_repetition_ratio: float = 0.5,
     ):
         """
         Initialize text analyzer.
@@ -118,6 +119,8 @@ class TextAnalyzer:
             max_length: Maximum document length in characters
             min_word_count: Minimum word count
             max_special_char_ratio: Maximum ratio of special characters
+            max_repetition_ratio: Maximum repeated-trigram ratio before a
+                document is flagged as repetitive content
         """
         settings = get_settings()
 
@@ -125,6 +128,7 @@ class TextAnalyzer:
         self.max_length = max_length or settings.MAX_SENTENCE_LENGTH
         self.min_word_count = min_word_count
         self.max_special_char_ratio = max_special_char_ratio
+        self.max_repetition_ratio = max_repetition_ratio
 
         logger.info(
             f"Initialized TextAnalyzer with min_length={self.min_length}, "
@@ -329,7 +333,49 @@ class TextAnalyzer:
                 )
             )
 
+        # Missing sentence punctuation (long text with no sentence boundaries
+        # hurts sentence-based chunking and often indicates extraction artifacts)
+        if stats.word_count >= 20 and stats.sentence_count <= 1 and not self.SENTENCE_PATTERN.search(text):
+            issues.append(
+                QualityIssue(
+                    document_id=doc_id,
+                    issue_type=QualityIssueType.MISSING_PUNCTUATION,
+                    message=f"No sentence punctuation in {stats.word_count} words",
+                    severity="warning",
+                    metadata={"word_count": stats.word_count},
+                )
+            )
+
+        # Repetitive content: low distinct-trigram ratio indicates copy-paste
+        # loops or boilerplate (common in scraped/ticket data)
+        repetition = self._trigram_repetition_ratio(text)
+        if repetition is not None and repetition > self.max_repetition_ratio:
+            issues.append(
+                QualityIssue(
+                    document_id=doc_id,
+                    issue_type=QualityIssueType.REPETITIVE_CONTENT,
+                    message=f"Repetitive content (trigram repetition {repetition:.0%})",
+                    severity="warning",
+                    metadata={"repetition_ratio": repetition},
+                )
+            )
+
         return issues
+
+    @staticmethod
+    def _trigram_repetition_ratio(text: str, min_words: int = 15) -> Optional[float]:
+        """
+        Fraction of repeated word trigrams: 1 - (distinct trigrams / total trigrams).
+
+        Returns None when the text is too short to judge (< min_words words).
+        0.0 means every trigram is unique; values near 1.0 mean the same
+        phrases repeat over and over.
+        """
+        words = text.split()
+        if len(words) < min_words:
+            return None
+        trigrams = [tuple(words[i : i + 3]) for i in range(len(words) - 2)]
+        return 1.0 - len(set(trigrams)) / len(trigrams)
 
     def get_length_histogram_data(
         self,
