@@ -53,3 +53,17 @@ class EmbeddingProvider(ABC):
     @abstractmethod
     def get_embedding_dimension(self) -> int:
         """Return the embedding dimension of this provider."""
+
+    @property
+    def recommended_duplicate_threshold(self) -> float:
+        """
+        Cosine-similarity threshold above which two documents should be
+        treated as near-duplicates FOR THIS MODEL.
+
+        Similarity scales are not portable across embedding models: e.g.
+        e5-family models map even unrelated passages to ~0.80 cosine, so a
+        threshold calibrated for Cohere embed-v3 (0.92) catastrophically
+        over-merges with e5 (measured: paraphrases ~0.93, hard distractors
+        with different answers ~0.90, true near-dups ~0.99+).
+        """
+        return 0.92  # Cohere embed-v3 scale (historical default)

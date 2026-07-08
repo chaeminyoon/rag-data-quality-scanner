@@ -86,6 +86,15 @@ class LocalEmbeddingClient(EmbeddingProvider):
     def get_embedding_dimension(self) -> int:
         return self.model.get_sentence_embedding_dimension()
 
+    @property
+    def recommended_duplicate_threshold(self) -> float:
+        # e5-family similarity is compressed into a high range (unrelated
+        # passages ≈ 0.80): true near-dups sit at ≈0.99, paraphrases ≈0.93.
+        # Measured on the controlled eval corpus — see docs/RESEARCH_NOTES.md.
+        if self._is_e5:
+            return 0.985
+        return 0.95
+
     def validate_connection(self) -> bool:
         """Local models have no connection; verify the model loads."""
         try:
