@@ -16,11 +16,12 @@ from tenacity import (
 )
 
 from config import get_logger, get_settings
+from .base import EmbeddingProvider
 
 logger = get_logger("embeddings.cohere_client")
 
 
-class CohereClient:
+class CohereClient(EmbeddingProvider):
     """
     Cohere API client optimized for RAG applications.
 

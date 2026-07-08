@@ -8,10 +8,10 @@ from typing import Callable, Dict, List, Optional, Set, Tuple
 import numpy as np
 
 from config import get_logger, get_settings
-from src.embeddings import CohereClient
-from src.vectordb import PineconeClient
+from src.embeddings import EmbeddingProvider, get_embedding_provider
+from src.vectordb import VectorStore, get_vector_store
 from .metrics import MetricsCalculator, EvaluationMetrics
-from .reranker import CohereReranker
+from .reranker import BaseReranker, get_reranker
 
 logger = get_logger("evaluator.evaluator")
 
@@ -114,33 +114,36 @@ class RAGEvaluator:
     Evaluate RAG performance with before/after comparison.
 
     Orchestrates:
-    1. Document indexing to Pinecone
+    1. Document indexing to the configured vector store
     2. Query evaluation
     3. Reranking integration
     4. Metrics calculation
+
+    Backends (local / Cohere / Pinecone) are resolved from settings
+    unless explicitly injected.
     """
 
     def __init__(
         self,
-        cohere_client: Optional[CohereClient] = None,
-        pinecone_client: Optional[PineconeClient] = None,
-        reranker: Optional[CohereReranker] = None,
+        embedding_provider: Optional[EmbeddingProvider] = None,
+        vector_store: Optional[VectorStore] = None,
+        reranker: Optional[BaseReranker] = None,
         k: int = None,
     ):
         """
         Initialize evaluator.
 
         Args:
-            cohere_client: Cohere client
-            pinecone_client: Pinecone client
-            reranker: Cohere reranker
+            embedding_provider: Embedding backend (default: from settings)
+            vector_store: Vector store backend (default: from settings)
+            reranker: Reranker backend (default: from settings)
             k: Default k for @k metrics
         """
         settings = get_settings()
 
-        self.cohere = cohere_client or CohereClient()
-        self.pinecone = pinecone_client or PineconeClient()
-        self.reranker = reranker or CohereReranker(self.cohere)
+        self.embedder = embedding_provider or get_embedding_provider()
+        self.store = vector_store or get_vector_store()
+        self.reranker = reranker or get_reranker()
         self.metrics = MetricsCalculator(k=k or settings.TOP_K)
         self.k = k or settings.TOP_K
 
@@ -156,12 +159,12 @@ class RAGEvaluator:
         progress_callback: Optional[Callable[[float], None]] = None,
     ) -> None:
         """
-        Index documents to Pinecone.
+        Index documents to the configured vector store.
 
         Args:
             documents: List of documents
             embeddings: Document embeddings
-            namespace: Pinecone namespace
+            namespace: Vector store namespace
             text_key: Key for document text
             id_key: Key for document ID
             progress_callback: Progress callback
@@ -170,13 +173,13 @@ class RAGEvaluator:
 
         # Ensure index exists
         dimension = embeddings.shape[1] if len(embeddings.shape) > 1 else len(embeddings[0])
-        self.pinecone.create_index(dimension=dimension)
+        self.store.create_index(dimension=dimension)
 
         # Clear existing data in namespace
-        self.pinecone.delete_namespace(namespace)
+        self.store.delete_namespace(namespace)
 
         # Upsert documents
-        self.pinecone.upsert_documents(
+        self.store.upsert_documents(
             documents=documents,
             embeddings=embeddings,
             namespace=namespace,
@@ -199,7 +202,7 @@ class RAGEvaluator:
 
         Args:
             queries: List of query dicts with ground truth
-            namespace: Pinecone namespace to query
+            namespace: Vector store namespace to query
             query_key: Key for query text
             relevant_ids_key: Key for relevant document IDs
             query_id_key: Key for query ID
@@ -222,16 +225,18 @@ class RAGEvaluator:
             relevant_ids = set(query_data.get(relevant_ids_key, []))
 
             # Embed query
-            query_embedding = self.cohere.embed_query(query_text)
+            query_embedding = self.embedder.embed_query(query_text)
 
-            # Retrieve from Pinecone
-            results = self.pinecone.query(
+            # Retrieve from vector store
+            results = self.store.query(
                 query_embedding=query_embedding,
                 top_k=top_k_retrieval,
                 namespace=namespace,
             )
 
             # Apply reranking if requested
+            if use_rerank and self.reranker is None:
+                raise ValueError("use_rerank=True but no reranker configured (RERANK_BACKEND=none)")
             if use_rerank and results:
                 reranked = self.reranker.rerank_retrieval_results(
                     query=query_text,
@@ -383,7 +388,7 @@ class RAGEvaluator:
 
     def cleanup(self, namespaces: List[str] = None) -> None:
         """
-        Clean up Pinecone namespaces.
+        Clean up vector store namespaces.
 
         Args:
             namespaces: Namespaces to delete (default: original, cleaned)
@@ -392,7 +397,7 @@ class RAGEvaluator:
 
         for ns in namespaces:
             try:
-                self.pinecone.delete_namespace(ns)
+                self.store.delete_namespace(ns)
                 logger.info(f"Deleted namespace: {ns}")
             except Exception as e:
                 logger.warning(f"Failed to delete namespace {ns}: {e}")
