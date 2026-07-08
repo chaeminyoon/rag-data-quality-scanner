@@ -68,6 +68,7 @@ class DataQualityScanner:
         noise_detector: Optional[NoiseDetector] = None,
         text_analyzer: Optional[TextAnalyzer] = None,
         cleaner: Optional[DataCleaner] = None,
+        duplicate_threshold: Optional[float] = None,
     ):
         """
         Initialize the scanner with optional custom components.
@@ -77,13 +78,24 @@ class DataQualityScanner:
             noise_detector: Noise detection component
             text_analyzer: Text analysis component
             cleaner: Data cleaning component
+            duplicate_threshold: Cosine threshold for near-duplicate merging.
+                When None, uses the embedding provider's model-calibrated
+                recommendation (similarity scales differ across models).
         """
         self.embedder = embedding_provider or get_embedding_provider()
-        self.noise_detector = noise_detector or NoiseDetector()
-        self.text_analyzer = text_analyzer or TextAnalyzer()
-        self.cleaner = cleaner or DataCleaner()
 
-        logger.info("Initialized DataQualityScanner")
+        resolved_threshold = (
+            duplicate_threshold
+            if duplicate_threshold is not None
+            else self.embedder.recommended_duplicate_threshold
+        )
+        self.noise_detector = noise_detector or NoiseDetector(threshold=resolved_threshold)
+        self.text_analyzer = text_analyzer or TextAnalyzer()
+        self.cleaner = cleaner or DataCleaner(duplicate_threshold=resolved_threshold)
+
+        logger.info(
+            f"Initialized DataQualityScanner (duplicate_threshold={resolved_threshold})"
+        )
 
     def scan(
         self,

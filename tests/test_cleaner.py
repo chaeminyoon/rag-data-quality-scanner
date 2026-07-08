@@ -53,21 +53,37 @@ class TestConservative:
 
 
 class TestModerate:
-    def test_keeps_longest_in_cluster(self, cleaner):
+    def test_keeps_clean_original_over_perturbed_copy(self, cleaner):
+        # 교란된 사본(이중 공백·구두점 앞 공백)이 원본보다 길어도 원본을 유지
         docs = [
-            {"id": "d1", "text": "RAG는 검색 증강 생성입니다."},
-            {"id": "d2", "text": "RAG는 검색 증강 생성입니다. 외부 지식으로 LLM을 보강하는 기술입니다."},
+            {"id": "d1", "text": "RAG는 검색 증강 생성 기술입니다."},
+            {"id": "d2", "text": "참고: RAG는  검색 증강 생성 기술입니다 ."},
         ]
         cluster = DuplicateCluster(
-            cluster_id=0, document_ids=["d1", "d2"], representative_id="d1"
+            cluster_id=0, document_ids=["d1", "d2"], representative_id="d2"
         )
         report = make_noise_report([cluster], ["d1", "d2"])
         result = cleaner.clean(
             docs, noise_report=report, strategy=CleaningStrategy.MODERATE
         )
         kept_ids = {d["id"] for d in result.cleaned_documents}
-        # d2 is longer -> it is kept even though d1 was the "representative"
-        assert kept_ids == {"d2"}
+        assert kept_ids == {"d1"}
+
+    def test_tie_breaks_to_shorter_copy(self, cleaner):
+        # 인공물이 없으면 더 짧은(군더더기 적은) 사본 유지
+        docs = [
+            {"id": "d1", "text": "RAG는 검색 증강 생성입니다."},
+            {"id": "d2", "text": "RAG는 검색 증강 생성입니다. 추가 안내는 문서를 참고하세요."},
+        ]
+        cluster = DuplicateCluster(
+            cluster_id=0, document_ids=["d1", "d2"], representative_id="d2"
+        )
+        report = make_noise_report([cluster], ["d1", "d2"])
+        result = cleaner.clean(
+            docs, noise_report=report, strategy=CleaningStrategy.MODERATE
+        )
+        kept_ids = {d["id"] for d in result.cleaned_documents}
+        assert kept_ids == {"d1"}
 
     def test_removes_short_documents(self, cleaner):
         docs = [

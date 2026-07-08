@@ -137,13 +137,22 @@ def render_sidebar():
 
         # Settings
         st.markdown("### Settings")
+        # 기본값은 임베딩 모델별 권장 임계값 (유사도 스케일이 모델마다 다름)
+        if "recommended_threshold" not in st.session_state:
+            st.session_state.recommended_threshold = (
+                get_embedding_provider().recommended_duplicate_threshold
+            )
         duplicate_threshold = st.slider(
             "Duplicate Threshold",
             min_value=0.80,
-            max_value=0.99,
-            value=0.92,
-            step=0.01,
-            help="Cosine similarity threshold for duplicate detection"
+            max_value=0.999,
+            value=st.session_state.recommended_threshold,
+            step=0.005,
+            help=(
+                "Cosine similarity threshold for duplicate detection. "
+                "Default is calibrated to the active embedding model — "
+                "e5-family models need ~0.985, Cohere embed-v3 ~0.92."
+            ),
         )
         st.session_state.duplicate_threshold = duplicate_threshold
 
@@ -291,7 +300,9 @@ def render_scan_page():
                 progress_bar.progress(min(total_progress, 1.0))
 
             try:
-                scanner = DataQualityScanner()
+                scanner = DataQualityScanner(
+                    duplicate_threshold=st.session_state.get("duplicate_threshold")
+                )
                 scan_result, cleaned_result = scanner.scan_and_clean(
                     documents=st.session_state.documents,
                     strategy=st.session_state.get("cleaning_strategy", CleaningStrategy.MODERATE),

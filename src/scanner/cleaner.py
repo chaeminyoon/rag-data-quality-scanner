@@ -15,6 +15,17 @@ from .text_analyzer import TextAnalysisResult, QualityIssueType
 logger = get_logger("scanner.cleaner")
 
 
+def _typographic_artifacts(text: str) -> int:
+    """Count telltale signs of a corrupted/perturbed copy (used to pick the
+    cleanest representative within a duplicate cluster)."""
+    import re
+
+    return (
+        len(re.findall(r"\s{2,}", text))          # double spaces
+        + len(re.findall(r"\s[.!?,]", text))       # space before punctuation
+    )
+
+
 class CleaningStrategy(Enum):
     """Cleaning aggressiveness levels."""
 
@@ -127,12 +138,22 @@ class DataCleaner:
                     seen_texts[normalized] = doc_id
 
         if noise_report and strategy in [CleaningStrategy.MODERATE, CleaningStrategy.AGGRESSIVE]:
-            # Remove near-duplicates, keeping the longest document per cluster
-            # (the most complete version), rather than an arbitrary first entry.
+            # Remove near-duplicates, keeping the cleanest copy per cluster.
+            # Selection order: fewest typographic artifacts (double spaces,
+            # space-before-punctuation — telltale signs of a corrupted copy),
+            # then SHORTEST, then stable id order. Rationale: at near-dup
+            # similarity the content is the same, so extra length is more
+            # likely prepended/inserted cruft than extra information.
+            # Plain "longest" is unsafe — a perturbed copy is often longer
+            # than the clean original and would win.
             for cluster in noise_report.duplicate_clusters:
-                keep_id = max(
+                keep_id = min(
                     cluster.document_ids,
-                    key=lambda d: len(doc_lookup.get(d, {}).get(text_key, "")),
+                    key=lambda d: (
+                        _typographic_artifacts(doc_lookup.get(d, {}).get(text_key, "")),
+                        len(doc_lookup.get(d, {}).get(text_key, "")),
+                        d,
+                    ),
                 )
                 for doc_id in cluster.document_ids:
                     if doc_id != keep_id:
