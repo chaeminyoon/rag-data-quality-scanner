@@ -9,6 +9,7 @@ import numpy as np
 
 from config import get_logger, get_settings
 from src.embeddings import EmbeddingProvider, get_embedding_provider
+from src.retrieval import BM25Retriever, reciprocal_rank_fusion
 from src.vectordb import VectorStore, get_vector_store
 from .metrics import MetricsCalculator, EvaluationMetrics
 from .reranker import BaseReranker, get_reranker
@@ -146,6 +147,7 @@ class RAGEvaluator:
         self.reranker = reranker or get_reranker()
         self.metrics = MetricsCalculator(k=k or settings.TOP_K)
         self.k = k or settings.TOP_K
+        self._bm25_indexes: Dict[str, BM25Retriever] = {}
 
         logger.info(f"Initialized RAGEvaluator with k={self.k}")
 
@@ -186,6 +188,11 @@ class RAGEvaluator:
             progress_callback=progress_callback,
         )
 
+        # Build the sparse (BM25) index for hybrid retrieval
+        self._bm25_indexes[namespace] = BM25Retriever(
+            documents, text_key=text_key, id_key=id_key
+        )
+
     def evaluate(
         self,
         queries: List[Dict],
@@ -194,6 +201,7 @@ class RAGEvaluator:
         relevant_ids_key: str = "relevant_doc_ids",
         query_id_key: str = "query_id",
         use_rerank: bool = False,
+        retrieval_mode: str = "dense",
         top_k_retrieval: int = 100,
         progress_callback: Optional[Callable[[float], None]] = None,
     ) -> EvaluationResult:
@@ -206,7 +214,8 @@ class RAGEvaluator:
             query_key: Key for query text
             relevant_ids_key: Key for relevant document IDs
             query_id_key: Key for query ID
-            use_rerank: Apply Cohere Rerank
+            use_rerank: Apply reranking to initial results
+            retrieval_mode: "dense" | "bm25" | "hybrid" (dense + BM25 via RRF)
             top_k_retrieval: Initial retrieval count
             progress_callback: Progress callback
 
@@ -224,15 +233,37 @@ class RAGEvaluator:
             query_id = query_data.get(query_id_key, f"query_{i}")
             relevant_ids = set(query_data.get(relevant_ids_key, []))
 
-            # Embed query
-            query_embedding = self.embedder.embed_query(query_text)
+            # Retrieve according to the configured mode
+            if retrieval_mode not in ("dense", "bm25", "hybrid"):
+                raise ValueError(f"Unknown retrieval_mode: {retrieval_mode}")
 
-            # Retrieve from vector store
-            results = self.store.query(
-                query_embedding=query_embedding,
-                top_k=top_k_retrieval,
-                namespace=namespace,
-            )
+            dense_results = []
+            if retrieval_mode in ("dense", "hybrid"):
+                query_embedding = self.embedder.embed_query(query_text)
+                dense_results = self.store.query(
+                    query_embedding=query_embedding,
+                    top_k=top_k_retrieval,
+                    namespace=namespace,
+                )
+
+            sparse_results = []
+            if retrieval_mode in ("bm25", "hybrid"):
+                bm25 = self._bm25_indexes.get(namespace)
+                if bm25 is None:
+                    raise ValueError(
+                        f"No BM25 index for namespace '{namespace}' — "
+                        "call setup_index() first"
+                    )
+                sparse_results = bm25.query(query_text, top_k=top_k_retrieval)
+
+            if retrieval_mode == "dense":
+                results = dense_results
+            elif retrieval_mode == "bm25":
+                results = sparse_results
+            else:
+                results = reciprocal_rank_fusion(
+                    [dense_results, sparse_results], top_k=top_k_retrieval
+                )
 
             # Apply reranking if requested
             if use_rerank and self.reranker is None:

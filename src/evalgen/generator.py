@@ -307,6 +307,8 @@ class EvalDatasetGenerator:
         combos = combos[: self.n_topics]
 
         gold_ids: List[str] = []
+        pending_code_queries: List[tuple] = []  # (topic_id, code, gold_id)
+        copies_of: Dict[str, List[str]] = {}    # gold_id -> 사본 doc_ids
         for t_idx, (svc, attr) in enumerate(combos):
             topic_id = f"topic_{t_idx:03d}"
             attr_name, q_tpl, val_fn, gold_tpls, para_tpls, related_tpls = attr
@@ -318,9 +320,24 @@ class EvalDatasetGenerator:
 
             gold_text = with_filler(self.rng.choice(gold_tpls).format(svc=svc, val=val))
             para_text = with_filler(self.rng.choice(para_tpls).format(svc=svc, val=val))
+
+            # 절반의 토픽에는 참조 코드를 삽입하고 '코드 조회형' 쿼리를 추가한다.
+            # 오류/참조 코드는 실제 헬프데스크 쿼리의 흔한 유형이며,
+            # dense 임베딩이 임의 식별자에 약한 지점(BM25 상보성)을 검증한다.
+            code = None
+            if t_idx % 2 == 0:
+                code = (
+                    "".join(self.rng.choice("ABCDEFGHJKMNPQRSTUVWXYZ") for _ in range(2))
+                    + "-"
+                    + "".join(self.rng.choice("0123456789") for _ in range(4))
+                )
+                gold_text += f" 이 항목의 참조 코드는 {code}입니다."
+
             gold_id = add_doc(gold_text, DocClass.GOLD, topic_id)
             para_id = add_doc(para_text, DocClass.RELEVANT, topic_id)
             gold_ids.append(gold_id)
+            if code is not None:
+                pending_code_queries.append((topic_id, code, gold_id))
 
             answer_ids = [gold_id, para_id]
 
@@ -349,6 +366,7 @@ class EvalDatasetGenerator:
             new_id = add_doc(src["text"], DocClass.EXACT_DUP, topic)
             q = queries[int(topic.split("_")[1])]
             q["relevant_doc_ids"].append(new_id)
+            copies_of.setdefault(gid, []).append(new_id)
 
         near_targets = self.rng.sample(gold_ids, k=min(self.n_near_dup, len(gold_ids)))
         for gid in near_targets:
@@ -357,6 +375,15 @@ class EvalDatasetGenerator:
             new_id = add_doc(self._perturb(src["text"]), DocClass.NEAR_DUP, topic)
             q = queries[int(topic.split("_")[1])]
             q["relevant_doc_ids"].append(new_id)
+            copies_of.setdefault(gid, []).append(new_id)
+
+        # 코드 조회형 쿼리 (정답 = 코드가 담긴 gold + 그 사본들)
+        for ci, (topic_id, code, gold_id) in enumerate(pending_code_queries):
+            queries.append({
+                "query_id": f"qc_{ci:03d}",
+                "query": f"참조 코드 {code}에 해당하는 항목은 어떤 내용인가요?",
+                "relevant_doc_ids": [gold_id] + copies_of.get(gold_id, []),
+            })
 
         # 무관 문서
         for i in range(self.n_irrelevant):

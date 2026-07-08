@@ -72,22 +72,36 @@ class NoiseDetector:
     def __init__(
         self,
         threshold: Optional[float] = None,
+        method: str = "embedding",
+        minhash_jaccard: float = 0.5,
     ):
         """
         Initialize noise detector.
 
         Args:
             threshold: Cosine similarity threshold for duplicates (default: from settings)
+            method: "embedding" (full O(n²) similarity matrix) or "two_stage"
+                (MinHash/LSH lexical candidates verified by embedding cosine —
+                scales ~O(n) and refuses to merge lexically-distinct documents
+                that merely share a template)
+            minhash_jaccard: LSH candidate threshold for two_stage
         """
         settings = get_settings()
         self.threshold = threshold or settings.DUPLICATE_THRESHOLD
+        if method not in ("embedding", "two_stage"):
+            raise ValueError(f"Unknown dedup method: {method}")
+        self.method = method
+        self.minhash_jaccard = minhash_jaccard
 
-        logger.info(f"Initialized NoiseDetector with threshold={self.threshold}")
+        logger.info(
+            f"Initialized NoiseDetector with threshold={self.threshold}, method={method}"
+        )
 
     def detect_duplicates(
         self,
         document_ids: List[str],
         embeddings: np.ndarray,
+        texts: Optional[List[str]] = None,
         progress_callback: Optional[Callable[[float], None]] = None,
     ) -> NoiseReport:
         """
@@ -96,6 +110,7 @@ class NoiseDetector:
         Args:
             document_ids: List of document identifiers
             embeddings: np.ndarray of shape (n_docs, dimension)
+            texts: Document texts (required for method="two_stage")
             progress_callback: Optional callback for progress updates
 
         Returns:
@@ -110,22 +125,34 @@ class NoiseDetector:
         if progress_callback:
             progress_callback(0.1)
 
-        # Compute pairwise cosine similarity
-        similarity_matrix = cosine_similarity(embeddings)
+        if self.method == "two_stage":
+            if texts is None:
+                raise ValueError("two_stage dedup requires document texts")
+            pairs = self._two_stage_pairs(texts, embeddings)
+            # 히트맵 UI용 전체 행렬은 소규모에서만 계산 (대규모 확장성 유지)
+            similarity_matrix = (
+                cosine_similarity(embeddings) if n_docs <= 1000 else None
+            )
+        else:
+            similarity_matrix = cosine_similarity(embeddings)
+            pairs = {
+                (i, j): float(similarity_matrix[i, j])
+                for i in range(n_docs)
+                for j in range(i + 1, n_docs)
+                if similarity_matrix[i, j] >= self.threshold
+            }
 
         if progress_callback:
             progress_callback(0.5)
 
-        # Find duplicate clusters using Union-Find
-        clusters = self._find_duplicate_clusters(
-            document_ids, similarity_matrix
-        )
+        # Find duplicate clusters using Union-Find over verified pairs
+        clusters = self._clusters_from_pairs(document_ids, pairs)
 
         if progress_callback:
             progress_callback(0.8)
 
-        # Compute noise scores
-        noise_scores = self._compute_noise_scores(similarity_matrix)
+        # Compute noise scores (neighbor counts above threshold)
+        noise_scores = self._noise_scores_from_pairs(n_docs, pairs)
 
         if progress_callback:
             progress_callback(1.0)
@@ -146,17 +173,46 @@ class NoiseDetector:
 
         return report
 
-    def _find_duplicate_clusters(
+    def _two_stage_pairs(
+        self,
+        texts: List[str],
+        embeddings: np.ndarray,
+    ) -> Dict[Tuple[int, int], float]:
+        """MinHash/LSH candidates verified by embedding cosine similarity."""
+        from .minhash_dedup import find_candidate_pairs
+
+        candidates = find_candidate_pairs(
+            texts, jaccard_threshold=self.minhash_jaccard
+        )
+        if not candidates:
+            return {}
+
+        normalized = embeddings / (
+            np.linalg.norm(embeddings, axis=1, keepdims=True) + 1e-12
+        )
+        verified = {}
+        for (i, j), _jac in candidates.items():
+            cos = float(normalized[i] @ normalized[j])
+            if cos >= self.threshold:
+                verified[(i, j)] = cos
+        logger.info(
+            f"Two-stage dedup: {len(candidates)} lexical candidates -> "
+            f"{len(verified)} verified by embeddings"
+        )
+        return verified
+
+    def _clusters_from_pairs(
         self,
         document_ids: List[str],
-        similarity_matrix: np.ndarray,
+        pairs_above_threshold: Dict[Tuple[int, int], float],
     ) -> List[DuplicateCluster]:
         """
-        Find clusters of duplicate documents using Union-Find algorithm.
+        Find clusters of duplicate documents using Union-Find over
+        verified duplicate pairs.
 
         Args:
             document_ids: List of document identifiers
-            similarity_matrix: Pairwise cosine similarity matrix
+            pairs_above_threshold: {(i, j): similarity} verified pairs (i < j)
 
         Returns:
             List of DuplicateCluster objects
@@ -182,13 +238,9 @@ class NoiseDetector:
             if rank[px] == rank[py]:
                 rank[px] += 1
 
-        # Find pairs above threshold and union them
-        pairs_above_threshold: Dict[Tuple[int, int], float] = {}
-        for i in range(n):
-            for j in range(i + 1, n):
-                if similarity_matrix[i, j] >= self.threshold:
-                    union(i, j)
-                    pairs_above_threshold[(i, j)] = similarity_matrix[i, j]
+        # Union all verified duplicate pairs
+        for (i, j) in pairs_above_threshold:
+            union(i, j)
 
         # Group documents by cluster
         cluster_map: Dict[int, List[int]] = {}
@@ -230,32 +282,20 @@ class NoiseDetector:
 
         return clusters
 
-    def _compute_noise_scores(self, similarity_matrix: np.ndarray) -> np.ndarray:
+    def _noise_scores_from_pairs(
+        self,
+        n_docs: int,
+        pairs_above_threshold: Dict[Tuple[int, int], float],
+    ) -> np.ndarray:
         """
-        Compute per-document noise score.
-
-        A document has high noise score if it has many high-similarity
-        neighbors (potential duplicates).
-
-        Args:
-            similarity_matrix: Pairwise cosine similarity matrix
-
-        Returns:
-            Array of noise scores (0-1) for each document
+        Per-document noise score: proportion of other documents that are
+        duplicate-level neighbors of this one.
         """
-        n = len(similarity_matrix)
-        noise_scores = np.zeros(n)
-
-        for i in range(n):
-            # Count neighbors above threshold (excluding self)
-            similarities = similarity_matrix[i].copy()
-            similarities[i] = 0  # Exclude self-similarity
-
-            # Noise score = proportion of documents above threshold
-            above_threshold = np.sum(similarities >= self.threshold)
-            noise_scores[i] = above_threshold / (n - 1) if n > 1 else 0
-
-        return noise_scores
+        counts = np.zeros(n_docs)
+        for (i, j) in pairs_above_threshold:
+            counts[i] += 1
+            counts[j] += 1
+        return counts / (n_docs - 1) if n_docs > 1 else counts
 
     def get_similarity_heatmap_data(
         self,

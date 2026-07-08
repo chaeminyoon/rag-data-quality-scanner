@@ -50,11 +50,18 @@ class TestGroundTruth:
                 assert rid in doc_ids
                 assert dataset.labels[rid]["answer_bearing"] is True
 
-    def test_gold_and_paraphrase_always_relevant(self, dataset):
-        # 각 쿼리의 relevant에는 최소 gold+relevant 2개가 포함
+    def test_gold_always_relevant(self, dataset):
         for q in dataset.queries:
             classes = {dataset.labels[rid]["doc_class"] for rid in q["relevant_doc_ids"]}
             assert "gold" in classes
+
+    def test_attribute_queries_include_paraphrase(self, dataset):
+        # 속성형(q_) 쿼리는 gold+paraphrase 둘 다 정답에 포함
+        # (코드 조회형 qc_ 쿼리는 코드가 gold에만 있으므로 제외)
+        for q in dataset.queries:
+            if not q["query_id"].startswith("q_"):
+                continue
+            classes = {dataset.labels[rid]["doc_class"] for rid in q["relevant_doc_ids"]}
             assert "relevant" in classes
 
     def test_related_docs_never_in_ground_truth(self, dataset):
