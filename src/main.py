@@ -20,8 +20,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import get_settings, setup_logging, get_logger
 from src.ingest import PDFParser, CSVLoader, TextChunker, ChunkStrategy
 from src.scanner import DataQualityScanner, CleaningStrategy
-from src.embeddings import CohereClient
-from src.vectordb import PineconeClient
+from src.embeddings import get_embedding_provider
 from src.evaluator import RAGEvaluator
 
 # Setup logging
@@ -158,15 +157,16 @@ def render_sidebar():
 
         st.divider()
 
-        # API Status
-        st.markdown("### API Status")
-        try:
-            settings = get_settings()
-            st.success("Cohere: Configured ✓")
-            st.success("Pinecone: Configured ✓")
-        except Exception as e:
-            st.error("API keys not configured")
-            st.caption("Set keys in .env file")
+        # Backend Status
+        st.markdown("### Backends")
+        settings = get_settings()
+        st.info(f"Embedding: {settings.EMBEDDING_BACKEND}")
+        st.info(f"Vector store: {settings.VECTOR_BACKEND}")
+        st.info(f"Rerank: {settings.RERANK_BACKEND}")
+        if settings.EMBEDDING_BACKEND == "cohere" and settings.COHERE_API_KEY is None:
+            st.error("EMBEDDING_BACKEND=cohere but COHERE_API_KEY is not set")
+        if settings.VECTOR_BACKEND == "pinecone" and settings.PINECONE_API_KEY is None:
+            st.error("VECTOR_BACKEND=pinecone but PINECONE_API_KEY is not set")
 
 
 def render_upload_page():
@@ -471,10 +471,10 @@ def render_benchmark_page():
                 scan_result = st.session_state.scan_result
                 cleaned_result = st.session_state.cleaned_result
 
-                # Re-embed cleaned documents
-                cohere = CohereClient()
+                # Re-embed cleaned documents with the configured backend
+                embedder = get_embedding_provider()
                 cleaned_texts = [d["text"] for d in cleaned_result.cleaned_documents]
-                cleaned_embeddings = cohere.embed_documents(cleaned_texts)
+                cleaned_embeddings = embedder.embed_documents(cleaned_texts)
 
                 evaluator = RAGEvaluator()
                 comparison = evaluator.compare(
