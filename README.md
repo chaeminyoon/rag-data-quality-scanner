@@ -10,6 +10,7 @@
 [![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://python.org)
 [![Tests](https://img.shields.io/badge/tests-76%20passed-brightgreen.svg)](tests/)
 [![Local First](https://img.shields.io/badge/API%20keys-not%20required-success.svg)](#install--run)
+</p>
 
 The main culprit behind degraded RAG performance is often the **data**, not the
 model — duplicate documents contaminate retrieval results, documents that *look*
