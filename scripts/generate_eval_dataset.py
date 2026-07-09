@@ -24,12 +24,12 @@ def main():
     dataset = EvalDatasetGenerator(seed=args.seed).generate()
     os.makedirs(args.out, exist_ok=True)
 
-    with open(f"{args.out}/documents.csv", "w", newline="") as f:
+    with open(f"{args.out}/documents.csv", "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=["id", "text", "category"])
         w.writeheader()
         w.writerows(dataset.documents)
 
-    with open(f"{args.out}/ground_truth.csv", "w", newline="") as f:
+    with open(f"{args.out}/ground_truth.csv", "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=["query_id", "query", "relevant_doc_ids"])
         w.writeheader()
         for q in dataset.queries:
@@ -39,7 +39,7 @@ def main():
                 "relevant_doc_ids": ",".join(q["relevant_doc_ids"]),
             })
 
-    with open(f"{args.out}/doc_labels.csv", "w", newline="") as f:
+    with open(f"{args.out}/doc_labels.csv", "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=["doc_id", "doc_class", "topic_id", "answer_bearing"])
         w.writeheader()
         for doc_id, meta in dataset.labels.items():

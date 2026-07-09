@@ -32,12 +32,12 @@ logger = get_logger("scripts.benchmark")
 
 
 def load_data(data_dir: str):
-    with open(f"{data_dir}/documents.csv") as f:
+    with open(f"{data_dir}/documents.csv", encoding="utf-8") as f:
         documents = [
             {"id": r["id"], "text": r["text"], "metadata": {"category": r.get("category", "")}}
             for r in csv.DictReader(f)
         ]
-    with open(f"{data_dir}/ground_truth.csv") as f:
+    with open(f"{data_dir}/ground_truth.csv", encoding="utf-8") as f:
         queries = [
             {
                 "query_id": r["query_id"],
@@ -49,7 +49,7 @@ def load_data(data_dir: str):
     labels = {}
     labels_path = f"{data_dir}/doc_labels.csv"
     if os.path.exists(labels_path):
-        with open(labels_path) as f:
+        with open(labels_path, encoding="utf-8") as f:
             labels = {r["doc_id"]: r for r in csv.DictReader(f)}
     return documents, queries, labels
 
@@ -338,7 +338,7 @@ def main():
         },
     }
     out_path = f"{args.out}/benchmark_{args.strategy}_{args.dedup_method}_k{args.k}.json"
-    with open(out_path, "w") as f:
+    with open(out_path, "w", encoding="utf-8") as f:
         json.dump(report, f, ensure_ascii=False, indent=2)
     print(f"\n리포트 저장: {out_path}")
 
