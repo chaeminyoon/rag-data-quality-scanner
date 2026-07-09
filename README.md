@@ -1,7 +1,7 @@
 <p align="center">
   <a href="README.md">English</a> | <a href="README.ko.md">한국어</a>
 </p>
-<h1 align="center">RAG Data Purifier</h1>
+<h1 align="center">RAG Audit Pipeline</h1>
 
 <p align="center">A diagnostic tool that detects, quantifies, and repairs the data-quality issues that degrade RAG retrieval accuracy</p>
 
