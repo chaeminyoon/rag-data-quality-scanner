@@ -1,6 +1,6 @@
-# RAG Data Quality Scanner
-
 English | **[한국어](README.ko.md)**
+
+# RAG Data Quality Scanner
 
 **A diagnostic tool that detects, quantifies, and repairs the data-quality issues that degrade RAG retrieval accuracy**
 
