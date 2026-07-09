@@ -25,6 +25,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from config import get_logger
 from src.scanner import DataQualityScanner, CleaningStrategy
+from src.scanner.distractor_analyzer import DistractorAnalyzer, classify_retrieval_failures
 from src.evaluator import RAGEvaluator
 
 logger = get_logger("scripts.benchmark")
@@ -198,6 +199,9 @@ def main():
     parser.add_argument("--rerank-candidates", type=int, default=50)
     parser.add_argument("--dedup-method", default="two_stage",
                         choices=["embedding", "two_stage"])
+    parser.add_argument("--duplicate-threshold", type=float, default=None,
+                        help="Override the model-calibrated duplicate threshold "
+                             "(e.g. 0.92 to reproduce the over-merge failure case)")
     parser.add_argument("--out", default="reports")
     args = parser.parse_args()
 
@@ -206,7 +210,10 @@ def main():
 
     # 1) 스캔 + 클리닝
     t0 = time.time()
-    scanner = DataQualityScanner(dedup_method=args.dedup_method)
+    scanner = DataQualityScanner(
+        dedup_method=args.dedup_method,
+        duplicate_threshold=args.duplicate_threshold,
+    )
     scan_result, cleaned_result = scanner.scan_and_clean(
         documents=documents, strategy=CleaningStrategy(args.strategy)
     )
@@ -274,6 +281,36 @@ def main():
 
     # 4) 리포트 저장
     os.makedirs(args.out, exist_ok=True)
+    # 5) 실패 유형 분류 (Barnett et al. CAIN'24: FP1/FP2) — dense 팔 기준
+    failure_breakdown = {}
+    for corpus in ["original", "cleaned"]:
+        cls = classify_retrieval_failures(
+            cells[f"{corpus}/dense"]["query_results"],
+            corpus_doc_ids=corpus_ids[corpus],
+            k=args.k,
+            full_ground_truth=full_gt,
+        )
+        failure_breakdown[corpus] = {t: len(v) for t, v in cls.items()}
+        bad = {t: v for t, v in cls.items() if t != "ok" and v}
+        if bad:
+            print(f"실패 분류[{corpus}]:", bad)
+    print("실패 분류 요약:", failure_breakdown)
+
+    # 6) Hard-distractor 분석 (Power of Noise의 'related' 문서 탐지)
+    analyzer = DistractorAnalyzer(evaluator, k=args.k)
+    distractor_report = analyzer.analyze(arm_queries["original"], namespace="original")
+    top5 = distractor_report.top_distractors[:5]
+    print(f"Distractor 분석: {distractor_report.summary}")
+    if labels:
+        # 탐지 문서의 실제 클래스 분포. 'related'뿐 아니라 다른 토픽의
+        # gold/저품질 문서도 나올 수 있다 — 해당 쿼리 관점에서는 정답을
+        # 밀어낸 진짜 distractor가 맞다 (교차 토픽 혼동의 신호).
+        flagged_classes = {}
+        for d in distractor_report.top_distractors:
+            c = labels.get(d["doc_id"], {}).get("doc_class", "unknown")
+            flagged_classes[c] = flagged_classes.get(c, 0) + 1
+        print(f"  탐지 문서의 실제 클래스 분포: {flagged_classes}")
+
     attribution = cleaning_attribution(cleaned_result, labels)
     if attribution:
         print("클리닝 귀속:", json.dumps(attribution, ensure_ascii=False))
@@ -281,6 +318,14 @@ def main():
     report = {
         "config": vars(args),
         "cleaning_attribution": attribution,
+        "failure_breakdown": failure_breakdown,
+        "distractor_analysis": {
+            "summary": distractor_report.summary,
+            "top_distractors": [
+                {**d, "true_class": labels.get(d["doc_id"], {}).get("doc_class")}
+                for d in distractor_report.top_distractors[:20]
+            ],
+        },
         "answers_destroyed_by_cleaning": destroyed["cleaned"],
         "corpus": {
             "total": len(documents),
