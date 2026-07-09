@@ -157,6 +157,11 @@ degrade — it **auto-classifies the damage as FP1 (missing content)** and tells
 
 ![failure diagnosis](docs/images/cli-failure-demo.svg)
 
+Every run also writes a shareable Markdown report (`reports/*.md`) — corpus summary,
+label-verified cleaning quality, the full 8-cell ablation, and diagnostics:
+
+![generated report](docs/images/report-preview.svg)
+
 ## Project Structure
 
 ```

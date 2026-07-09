@@ -144,6 +144,11 @@ python scripts/benchmark.py --duplicate-threshold 0.92 --dedup-method embedding
 
 ![failure diagnosis](docs/images/cli-failure-demo.svg)
 
+매 실행마다 공유 가능한 Markdown 리포트(`reports/*.md`)도 생성됩니다 — 코퍼스 요약,
+라벨 기반 클리닝 품질, 8-cell ablation 전체, 진단 결과:
+
+![generated report](docs/images/report-preview.svg)
+
 ## 프로젝트 구조
 
 ```

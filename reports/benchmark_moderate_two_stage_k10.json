@@ -5,16 +5,17 @@
     "k": 10,
     "rerank_candidates": 50,
     "dedup_method": "two_stage",
+    "duplicate_threshold": null,
     "out": "reports"
   },
   "cleaning_attribution": {
     "dedup_precision": 0.9,
     "dedup_recall": 1.0,
     "removed_by_true_class": {
-      "low_quality": 9,
       "exact_dup": 15,
+      "irrelevant": 3,
       "near_dup": 15,
-      "irrelevant": 3
+      "low_quality": 9
     }
   },
   "failure_breakdown": {
