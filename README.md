@@ -1,10 +1,11 @@
 <p align="center">
   <a href="README.md">English</a> | <a href="README.ko.md">한국어</a>
 </p>
+<h1 align="center">RAG Data Quality Scanner</h1>
 
-# RAG Data Quality Scanner
+<p align="center">A diagnostic tool that detects, quantifies, and repairs the data-quality issues that degrade RAG retrieval accuracy</p>
 
-**A diagnostic tool that detects, quantifies, and repairs the data-quality issues that degrade RAG retrieval accuracy**
+<p align="center">
 
 [![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://python.org)
 [![Tests](https://img.shields.io/badge/tests-76%20passed-brightgreen.svg)](tests/)
