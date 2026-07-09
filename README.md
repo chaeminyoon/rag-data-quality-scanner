@@ -8,8 +8,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white" alt="Python 3.10+">
   <img src="https://img.shields.io/badge/tests-76%20passed-brightgreen.svg"logo=test&logoColor=white" alt="76 passed">
-  <img src="https://img.shields.io/badge/tests-76%20passed-brightgreen.svg"logo=test&logoColor=white" alt="Not Required">
-[![Local First](https://img.shields.io/badge/API%20keys-not%20required-success.svg)](#install--run)
+  <img src="[https://img.shields.io/badge/tests-76%20passed-brightgreen.svg](https://img.shields.io/badge/API%20keys-not%20required-success.svg)"logo=test&logoColor=white" alt="Not Required">
 </p>
 
 The main culprit behind degraded RAG performance is often the **data**, not the
