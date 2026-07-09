@@ -20,8 +20,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import get_settings, setup_logging, get_logger
 from src.ingest import PDFParser, CSVLoader, TextChunker, ChunkStrategy
 from src.scanner import DataQualityScanner, CleaningStrategy
-from src.embeddings import CohereClient
-from src.vectordb import PineconeClient
+from src.embeddings import get_embedding_provider
 from src.evaluator import RAGEvaluator
 
 # Setup logging
@@ -138,13 +137,22 @@ def render_sidebar():
 
         # Settings
         st.markdown("### Settings")
+        # 기본값은 임베딩 모델별 권장 임계값 (유사도 스케일이 모델마다 다름)
+        if "recommended_threshold" not in st.session_state:
+            st.session_state.recommended_threshold = (
+                get_embedding_provider().recommended_duplicate_threshold
+            )
         duplicate_threshold = st.slider(
             "Duplicate Threshold",
             min_value=0.80,
-            max_value=0.99,
-            value=0.92,
-            step=0.01,
-            help="Cosine similarity threshold for duplicate detection"
+            max_value=0.999,
+            value=st.session_state.recommended_threshold,
+            step=0.005,
+            help=(
+                "Cosine similarity threshold for duplicate detection. "
+                "Default is calibrated to the active embedding model — "
+                "e5-family models need ~0.985, Cohere embed-v3 ~0.92."
+            ),
         )
         st.session_state.duplicate_threshold = duplicate_threshold
 
@@ -158,15 +166,16 @@ def render_sidebar():
 
         st.divider()
 
-        # API Status
-        st.markdown("### API Status")
-        try:
-            settings = get_settings()
-            st.success("Cohere: Configured ✓")
-            st.success("Pinecone: Configured ✓")
-        except Exception as e:
-            st.error("API keys not configured")
-            st.caption("Set keys in .env file")
+        # Backend Status
+        st.markdown("### Backends")
+        settings = get_settings()
+        st.info(f"Embedding: {settings.EMBEDDING_BACKEND}")
+        st.info(f"Vector store: {settings.VECTOR_BACKEND}")
+        st.info(f"Rerank: {settings.RERANK_BACKEND}")
+        if settings.EMBEDDING_BACKEND == "cohere" and settings.COHERE_API_KEY is None:
+            st.error("EMBEDDING_BACKEND=cohere but COHERE_API_KEY is not set")
+        if settings.VECTOR_BACKEND == "pinecone" and settings.PINECONE_API_KEY is None:
+            st.error("VECTOR_BACKEND=pinecone but PINECONE_API_KEY is not set")
 
 
 def render_upload_page():
@@ -197,7 +206,17 @@ def render_upload_page():
                 if file.name.endswith(".pdf"):
                     parser = PDFParser()
                     docs = parser.parse(file, filename=file.name)
-                    documents.extend([{"id": d.id, "text": d.text, "metadata": d.metadata} for d in docs])
+                    # 긴 PDF 문서는 문장 경계 기준으로 청킹한다.
+                    # 청크 메타데이터에 소스 파일명·부모 문서 id·청크 번호가 유지됨
+                    # (Barnett et al. CAIN'24 Table 2: 메타데이터가 검색·추출 개선)
+                    chunker = TextChunker()
+                    short_docs = [d for d in docs if len(d.text) <= chunker.chunk_size]
+                    long_docs = [d for d in docs if len(d.text) > chunker.chunk_size]
+                    chunked = chunker.chunk(long_docs, strategy=ChunkStrategy.SENTENCE)
+                    for d in short_docs + chunked:
+                        documents.append(
+                            {"id": d.id, "text": d.text, "metadata": d.metadata}
+                        )
                 elif file.name.endswith(".csv"):
                     # Show column mapping
                     st.markdown("#### CSV Column Mapping")
@@ -291,7 +310,9 @@ def render_scan_page():
                 progress_bar.progress(min(total_progress, 1.0))
 
             try:
-                scanner = DataQualityScanner()
+                scanner = DataQualityScanner(
+                    duplicate_threshold=st.session_state.get("duplicate_threshold")
+                )
                 scan_result, cleaned_result = scanner.scan_and_clean(
                     documents=st.session_state.documents,
                     strategy=st.session_state.get("cleaning_strategy", CleaningStrategy.MODERATE),
@@ -374,25 +395,28 @@ def render_scan_page():
         st.caption("Red areas indicate potential duplicates (high similarity)")
 
         heatmap_data = scan_result.noise_report.similarity_matrix
-        # Subsample for display
-        max_display = 50
-        if len(heatmap_data) > max_display:
-            indices = np.linspace(0, len(heatmap_data) - 1, max_display, dtype=int)
-            display_matrix = heatmap_data[np.ix_(indices, indices)]
+        if heatmap_data is None:
+            st.info("Similarity heatmap is skipped for large corpora (two-stage dedup).")
         else:
-            display_matrix = heatmap_data
+            # Subsample for display
+            max_display = 50
+            if len(heatmap_data) > max_display:
+                indices = np.linspace(0, len(heatmap_data) - 1, max_display, dtype=int)
+                display_matrix = heatmap_data[np.ix_(indices, indices)]
+            else:
+                display_matrix = heatmap_data
 
-        fig = px.imshow(
-            display_matrix,
-            color_continuous_scale="RdBu_r",
-            zmin=0,
-            zmax=1,
-        )
-        fig.update_layout(
-            margin=dict(l=20, r=20, t=30, b=20),
-            height=400,
-        )
-        st.plotly_chart(fig, use_container_width=True)
+            fig = px.imshow(
+                display_matrix,
+                color_continuous_scale="RdBu_r",
+                zmin=0,
+                zmax=1,
+            )
+            fig.update_layout(
+                margin=dict(l=20, r=20, t=30, b=20),
+                height=400,
+            )
+            st.plotly_chart(fig, use_container_width=True)
 
         # Cleaning summary
         if cleaned_result:
@@ -471,10 +495,10 @@ def render_benchmark_page():
                 scan_result = st.session_state.scan_result
                 cleaned_result = st.session_state.cleaned_result
 
-                # Re-embed cleaned documents
-                cohere = CohereClient()
+                # Re-embed cleaned documents with the configured backend
+                embedder = get_embedding_provider()
                 cleaned_texts = [d["text"] for d in cleaned_result.cleaned_documents]
-                cleaned_embeddings = cohere.embed_documents(cleaned_texts)
+                cleaned_embeddings = embedder.embed_documents(cleaned_texts)
 
                 evaluator = RAGEvaluator()
                 comparison = evaluator.compare(

@@ -15,6 +15,17 @@ from .text_analyzer import TextAnalysisResult, QualityIssueType
 logger = get_logger("scanner.cleaner")
 
 
+def _typographic_artifacts(text: str) -> int:
+    """Count telltale signs of a corrupted/perturbed copy (used to pick the
+    cleanest representative within a duplicate cluster)."""
+    import re
+
+    return (
+        len(re.findall(r"\s{2,}", text))          # double spaces
+        + len(re.findall(r"\s[.!?,]", text))       # space before punctuation
+    )
+
+
 class CleaningStrategy(Enum):
     """Cleaning aggressiveness levels."""
 
@@ -114,11 +125,38 @@ class DataCleaner:
         to_remove: Dict[str, str] = {}  # doc_id -> reason
 
         # Apply cleaning based on strategy
+        if strategy == CleaningStrategy.CONSERVATIVE:
+            # Exact duplicates only: identical text after whitespace normalization.
+            # (Previously this branch was missing entirely, so CONSERVATIVE
+            # removed nothing despite being documented as "exact duplicates only".)
+            seen_texts: Dict[str, str] = {}  # normalized text -> first doc_id
+            for doc_id, doc in doc_lookup.items():
+                normalized = " ".join(doc.get(text_key, "").split())
+                if normalized in seen_texts:
+                    to_remove[doc_id] = "exact_duplicate"
+                else:
+                    seen_texts[normalized] = doc_id
+
         if noise_report and strategy in [CleaningStrategy.MODERATE, CleaningStrategy.AGGRESSIVE]:
-            # Remove duplicates (keep representative from each cluster)
+            # Remove near-duplicates, keeping the cleanest copy per cluster.
+            # Selection order: fewest typographic artifacts (double spaces,
+            # space-before-punctuation — telltale signs of a corrupted copy),
+            # then SHORTEST, then stable id order. Rationale: at near-dup
+            # similarity the content is the same, so extra length is more
+            # likely prepended/inserted cruft than extra information.
+            # Plain "longest" is unsafe — a perturbed copy is often longer
+            # than the clean original and would win.
             for cluster in noise_report.duplicate_clusters:
+                keep_id = min(
+                    cluster.document_ids,
+                    key=lambda d: (
+                        _typographic_artifacts(doc_lookup.get(d, {}).get(text_key, "")),
+                        len(doc_lookup.get(d, {}).get(text_key, "")),
+                        d,
+                    ),
+                )
                 for doc_id in cluster.document_ids:
-                    if doc_id != cluster.representative_id:
+                    if doc_id != keep_id:
                         to_remove[doc_id] = "duplicate"
 
         if text_analysis:

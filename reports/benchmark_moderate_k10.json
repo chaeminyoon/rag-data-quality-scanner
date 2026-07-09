@@ -1,0 +1,151 @@
+{
+  "config": {
+    "data": "data/eval",
+    "strategy": "moderate",
+    "k": 10,
+    "rerank_candidates": 50,
+    "out": "reports"
+  },
+  "cleaning_attribution": {
+    "dedup_precision": 0.925,
+    "dedup_recall": 1.0,
+    "removed_by_true_class": {
+      "near_dup": 15,
+      "exact_dup": 15,
+      "irrelevant": 3,
+      "low_quality": 9
+    }
+  },
+  "answers_destroyed_by_cleaning": 0,
+  "corpus": {
+    "total": 222,
+    "cleaned": 180,
+    "removed": 42,
+    "removal_reasons": {
+      "duplicate": 40,
+      "too_short": 2
+    }
+  },
+  "results": {
+    "original": {
+      "ndcg": {
+        "mean": 0.9267906303602453,
+        "ci95": [
+          0.8886241457085446,
+          0.9608626473082207
+        ]
+      },
+      "mrr": {
+        "mean": 0.9458333333333334,
+        "ci95": [
+          0.8916666666666666,
+          0.9875
+        ]
+      },
+      "hit_rate": {
+        "mean": 1.0,
+        "ci95": [
+          1.0,
+          1.0
+        ]
+      },
+      "fact_recall": {
+        "mean": 1.0,
+        "ci95": [
+          1.0,
+          1.0
+        ]
+      }
+    },
+    "original+rerank": {
+      "ndcg": {
+        "mean": 0.9530675841713441,
+        "ci95": [
+          0.9189607461926328,
+          0.9817161144634586
+        ]
+      },
+      "mrr": {
+        "mean": 0.95,
+        "ci95": [
+          0.9,
+          0.9875
+        ]
+      },
+      "hit_rate": {
+        "mean": 1.0,
+        "ci95": [
+          1.0,
+          1.0
+        ]
+      },
+      "fact_recall": {
+        "mean": 1.0,
+        "ci95": [
+          1.0,
+          1.0
+        ]
+      }
+    },
+    "cleaned": {
+      "ndcg": {
+        "mean": 0.9362480790978784,
+        "ci95": [
+          0.9054178838308644,
+          0.9650986982796299
+        ]
+      },
+      "mrr": {
+        "mean": 0.95,
+        "ci95": [
+          0.9,
+          0.9875
+        ]
+      },
+      "hit_rate": {
+        "mean": 1.0,
+        "ci95": [
+          1.0,
+          1.0
+        ]
+      },
+      "fact_recall": {
+        "mean": 1.0,
+        "ci95": [
+          1.0,
+          1.0
+        ]
+      }
+    },
+    "cleaned+rerank": {
+      "ndcg": {
+        "mean": 0.9520629839708287,
+        "ci95": [
+          0.915543802908903,
+          0.9835176853409564
+        ]
+      },
+      "mrr": {
+        "mean": 0.95,
+        "ci95": [
+          0.9,
+          0.9875
+        ]
+      },
+      "hit_rate": {
+        "mean": 1.0,
+        "ci95": [
+          1.0,
+          1.0
+        ]
+      },
+      "fact_recall": {
+        "mean": 1.0,
+        "ci95": [
+          1.0,
+          1.0
+        ]
+      }
+    }
+  }
+}

@@ -16,11 +16,12 @@ from tenacity import (
 )
 
 from config import get_logger, get_settings
+from .base import EmbeddingProvider
 
 logger = get_logger("embeddings.cohere_client")
 
 
-class CohereClient:
+class CohereClient(EmbeddingProvider):
     """
     Cohere API client optimized for RAG applications.
 
@@ -51,7 +52,17 @@ class CohereClient:
         """
         settings = get_settings()
 
-        self.api_key = api_key or settings.COHERE_API_KEY.get_secret_value()
+        configured_key = (
+            settings.COHERE_API_KEY.get_secret_value()
+            if settings.COHERE_API_KEY is not None
+            else None
+        )
+        self.api_key = api_key or configured_key
+        if not self.api_key:
+            raise ValueError(
+                "Cohere API key not configured. Set COHERE_API_KEY in .env "
+                "or use EMBEDDING_BACKEND=local for offline operation."
+            )
         self.embed_model = embed_model or settings.COHERE_EMBED_MODEL
         self.rerank_model = rerank_model or settings.COHERE_RERANK_MODEL
 
@@ -95,19 +106,15 @@ class CohereClient:
         for batch_idx in range(0, len(texts), self.MAX_EMBED_BATCH_SIZE):
             batch = texts[batch_idx : batch_idx + self.MAX_EMBED_BATCH_SIZE]
 
-            try:
-                response = self.client.embed(
-                    texts=batch,
-                    model=self.embed_model,
-                    input_type=input_type,
-                )
-                all_embeddings.extend(response.embeddings)
-
-            except ApiError as e:
-                logger.error(f"API error: {e}")
-                # Return zero vectors for failed batch
-                dimension = len(all_embeddings[0]) if all_embeddings else 1024
-                all_embeddings.extend([[0.0] * dimension] * len(batch))
+            # Fail loudly on API errors after retries are exhausted.
+            # (Previously failed batches were silently filled with zero vectors,
+            # which corrupted downstream cosine-similarity duplicate detection.)
+            response = self.client.embed(
+                texts=batch,
+                model=self.embed_model,
+                input_type=input_type,
+            )
+            all_embeddings.extend(response.embeddings)
 
             # Progress callback
             if progress_callback:

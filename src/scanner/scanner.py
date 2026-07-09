@@ -8,7 +8,7 @@ from typing import Callable, Dict, List, Optional, Tuple
 import numpy as np
 
 from config import get_logger
-from src.embeddings import CohereClient
+from src.embeddings import EmbeddingProvider, get_embedding_provider
 from .noise_detector import NoiseDetector, NoiseReport
 from .text_analyzer import TextAnalyzer, TextAnalysisResult
 from .cleaner import DataCleaner, CleaningStrategy, CleanedDataResult
@@ -54,7 +54,7 @@ class DataQualityScanner:
     Orchestrate complete data quality scanning pipeline.
 
     Coordinates:
-    1. Embedding generation with Cohere
+    1. Embedding generation (local or Cohere backend)
     2. Duplicate/noise detection
     3. Text quality analysis
     4. Data cleaning
@@ -64,26 +64,41 @@ class DataQualityScanner:
 
     def __init__(
         self,
-        cohere_client: Optional[CohereClient] = None,
+        embedding_provider: Optional[EmbeddingProvider] = None,
         noise_detector: Optional[NoiseDetector] = None,
         text_analyzer: Optional[TextAnalyzer] = None,
         cleaner: Optional[DataCleaner] = None,
+        duplicate_threshold: Optional[float] = None,
+        dedup_method: str = "two_stage",
     ):
         """
         Initialize the scanner with optional custom components.
 
         Args:
-            cohere_client: Cohere API client (created if not provided)
+            embedding_provider: Embedding backend (default: from settings)
             noise_detector: Noise detection component
             text_analyzer: Text analysis component
             cleaner: Data cleaning component
+            duplicate_threshold: Cosine threshold for near-duplicate merging.
+                When None, uses the embedding provider's model-calibrated
+                recommendation (similarity scales differ across models).
         """
-        self.cohere = cohere_client or CohereClient()
-        self.noise_detector = noise_detector or NoiseDetector()
-        self.text_analyzer = text_analyzer or TextAnalyzer()
-        self.cleaner = cleaner or DataCleaner()
+        self.embedder = embedding_provider or get_embedding_provider()
 
-        logger.info("Initialized DataQualityScanner")
+        resolved_threshold = (
+            duplicate_threshold
+            if duplicate_threshold is not None
+            else self.embedder.recommended_duplicate_threshold
+        )
+        self.noise_detector = noise_detector or NoiseDetector(
+            threshold=resolved_threshold, method=dedup_method
+        )
+        self.text_analyzer = text_analyzer or TextAnalyzer()
+        self.cleaner = cleaner or DataCleaner(duplicate_threshold=resolved_threshold)
+
+        logger.info(
+            f"Initialized DataQualityScanner (duplicate_threshold={resolved_threshold})"
+        )
 
     def scan(
         self,
@@ -116,7 +131,7 @@ class DataQualityScanner:
         texts = [doc.get(text_key, "") for doc in documents]
         doc_ids = [doc.get(id_key, str(i)) for i, doc in enumerate(documents)]
 
-        embeddings = self.cohere.embed_documents(
+        embeddings = self.embedder.embed_documents(
             texts,
             progress_callback=lambda p: emit_progress("embedding", p),
         )
@@ -127,6 +142,7 @@ class DataQualityScanner:
         noise_report = self.noise_detector.detect_duplicates(
             document_ids=doc_ids,
             embeddings=embeddings,
+            texts=texts,
             progress_callback=lambda p: emit_progress("noise_detection", p),
         )
         emit_progress("noise_detection", 1.0)
