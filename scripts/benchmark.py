@@ -206,7 +206,7 @@ def main():
     args = parser.parse_args()
 
     documents, queries, labels = load_data(args.data)
-    print(f"문서 {len(documents)}개 / 쿼리 {len(queries)}개 로드")
+    print(f"loaded {len(documents)} documents / {len(queries)} queries")
 
     # 1) 스캔 + 클리닝
     t0 = time.time()
@@ -217,10 +217,10 @@ def main():
     scan_result, cleaned_result = scanner.scan_and_clean(
         documents=documents, strategy=CleaningStrategy(args.strategy)
     )
-    print(f"[스캔+클리닝] {time.time()-t0:.1f}s — "
-          f"{cleaned_result.original_count} -> {cleaned_result.cleaned_count}개 "
-          f"(제거 {cleaned_result.removed_count})")
-    print("제거 사유:", {k: len(v) for k, v in cleaned_result.removal_reasons.items()})
+    print(f"[scan+clean] {time.time()-t0:.1f}s   "
+          f"{cleaned_result.original_count} -> {cleaned_result.cleaned_count} docs "
+          f"(removed {cleaned_result.removed_count})")
+    print("removed by reason:", {k: len(v) for k, v in cleaned_result.removal_reasons.items()})
 
     # 2) 임베딩 + 인덱싱 (재사용: 클린 문서의 임베딩은 스캔 결과에서 추출)
     embedder = scanner.embedder
@@ -256,7 +256,7 @@ def main():
         arm_queries[corpus] = qs
         destroyed[corpus] = lost
     if destroyed["cleaned"]:
-        print(f"경고: 클리닝으로 정답이 전부 삭제된 쿼리 {destroyed['cleaned']}개")
+        print(f"WARNING: cleaning destroyed every answer for {destroyed['cleaned']} queries")
 
     cells = {}
     for corpus in ["original", "cleaned"]:
@@ -293,14 +293,14 @@ def main():
         failure_breakdown[corpus] = {t: len(v) for t, v in cls.items()}
         bad = {t: v for t, v in cls.items() if t != "ok" and v}
         if bad:
-            print(f"실패 분류[{corpus}]:", bad)
-    print("실패 분류 요약:", failure_breakdown)
+            print(f"failure classification [{corpus}]:", bad)
+    print("failure classification:", failure_breakdown)
 
     # 6) Hard-distractor 분석 (Power of Noise의 'related' 문서 탐지)
     analyzer = DistractorAnalyzer(evaluator, k=args.k)
     distractor_report = analyzer.analyze(arm_queries["original"], namespace="original")
     top5 = distractor_report.top_distractors[:5]
-    print(f"Distractor 분석: {distractor_report.summary}")
+    print(f"hard-distractor analysis: {distractor_report.summary}")
     if labels:
         # 탐지 문서의 실제 클래스 분포. 'related'뿐 아니라 다른 토픽의
         # gold/저품질 문서도 나올 수 있다 — 해당 쿼리 관점에서는 정답을
@@ -309,11 +309,11 @@ def main():
         for d in distractor_report.top_distractors:
             c = labels.get(d["doc_id"], {}).get("doc_class", "unknown")
             flagged_classes[c] = flagged_classes.get(c, 0) + 1
-        print(f"  탐지 문서의 실제 클래스 분포: {flagged_classes}")
+        print(f"  flagged docs by true class: {flagged_classes}")
 
     attribution = cleaning_attribution(cleaned_result, labels)
     if attribution:
-        print("클리닝 귀속:", json.dumps(attribution, ensure_ascii=False))
+        print("cleaning attribution:", json.dumps(attribution, ensure_ascii=False))
 
     report = {
         "config": vars(args),
@@ -340,7 +340,7 @@ def main():
     out_path = f"{args.out}/benchmark_{args.strategy}_{args.dedup_method}_k{args.k}.json"
     with open(out_path, "w") as f:
         json.dump(report, f, ensure_ascii=False, indent=2)
-    print(f"\n리포트 저장: {out_path}")
+    print(f"\nreport saved: {out_path}")
 
 
 if __name__ == "__main__":

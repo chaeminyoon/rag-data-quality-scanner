@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 391" font-family="'Cascadia Code','D2Coding','Consolas','Courier New',monospace" font-size="13.5">
+<rect width="880" height="391" rx="10" fill="#0d1117" stroke="#30363d"/>
+<circle cx="24" cy="22" r="6" fill="#ff5f57"/><circle cx="44" cy="22" r="6" fill="#febc2e"/><circle cx="64" cy="22" r="6" fill="#28c840"/>
+<text x="440" y="26" text-anchor="middle" fill="#8b949e" font-size="12">rag-data-quality-scanner — benchmark</text>
+<line x1="0" y1="40" x2="880" y2="40" stroke="#30363d"/>
+<text x="22" y="56" xml:space="preserve"><tspan fill="#3fb950">$ </tspan><tspan fill="#e6edf3">python scripts/benchmark.py --strategy moderate</tspan></text>
+<text x="22" y="77" xml:space="preserve"><tspan fill="#8b949e">loaded 222 documents / 60 queries</tspan></text>
+<text x="22" y="98" xml:space="preserve"><tspan fill="#8b949e">[scan+clean] </tspan><tspan fill="#79c0ff">222 → 180</tspan><tspan fill="#8b949e"> docs   (removed </tspan><tspan fill="#79c0ff">42</tspan><tspan fill="#8b949e">)</tspan></text>
+<text x="22" y="119" xml:space="preserve"><tspan fill="#8b949e">removed by reason:  </tspan><tspan fill="#e6edf3">duplicate 40 · too_short 2</tspan></text>
+<text x="22" y="161" xml:space="preserve"><tspan fill="#6e7681"># 8-cell ablation · present-answer NDCG@10 · bootstrap 95% CI</tspan></text>
+<text x="22" y="182" xml:space="preserve"><tspan fill="#8b949e">  original / dense  + rerank    </tspan><tspan fill="#8b949e">ndcg </tspan><tspan fill="#e6edf3">0.984</tspan><tspan fill="#8b949e">   mrr </tspan><tspan fill="#e6edf3">0.992</tspan><tspan fill="#8b949e">   recall </tspan><tspan fill="#e6edf3">1.00</tspan></text>
+<text x="22" y="203" xml:space="preserve"><tspan fill="#8b949e">  original / hybrid + rerank    </tspan><tspan fill="#8b949e">ndcg </tspan><tspan fill="#e6edf3">0.984</tspan><tspan fill="#8b949e">   mrr </tspan><tspan fill="#e6edf3">0.992</tspan><tspan fill="#8b949e">   recall </tspan><tspan fill="#e6edf3">1.00</tspan></text>
+<text x="22" y="224" xml:space="preserve"><tspan fill="#8b949e">  cleaned  / dense  + rerank    </tspan><tspan fill="#8b949e">ndcg </tspan><tspan fill="#e6edf3">0.979</tspan><tspan fill="#8b949e">   mrr </tspan><tspan fill="#e6edf3">0.992</tspan><tspan fill="#8b949e">   recall </tspan><tspan fill="#e6edf3">1.00</tspan></text>
+<text x="22" y="245" xml:space="preserve"><tspan fill="#8b949e">  cleaned  / hybrid + rerank    </tspan><tspan fill="#8b949e">ndcg </tspan><tspan fill="#e6edf3">0.979</tspan><tspan fill="#8b949e">   mrr </tspan><tspan fill="#e6edf3">0.992</tspan><tspan fill="#8b949e">   recall </tspan><tspan fill="#e6edf3">1.00</tspan></text>
+<text x="22" y="287" xml:space="preserve"><tspan fill="#8b949e">cleaning attribution     </tspan><tspan fill="#e6edf3">dedup precision 0.90 · recall 1.00 · </tspan><tspan fill="#3fb950">0 gold removed</tspan></text>
+<text x="22" y="308" xml:space="preserve"><tspan fill="#8b949e">failure classification   </tspan><tspan fill="#e6edf3">original OK 60/60 · cleaned OK 60/60</tspan></text>
+<text x="22" y="329" xml:space="preserve"><tspan fill="#8b949e">hard-distractor          </tspan><tspan fill="#e6edf3">13 docs displaced answers in 5 queries · worst </tspan><tspan fill="#e3b341">doc_0177 ×3</tspan></text>
+<text x="22" y="371" xml:space="preserve"><tspan fill="#8b949e">report saved → </tspan><tspan fill="#79c0ff">reports/benchmark_moderate_two_stage_k10.json</tspan></text>
+</svg>

@@ -45,8 +45,8 @@ def main():
         for doc_id, meta in dataset.labels.items():
             w.writerow({"doc_id": doc_id, **meta})
 
-    print(f"문서 {len(dataset.documents)}개, 쿼리 {len(dataset.queries)}개 생성 -> {args.out}/")
-    print("클래스 분포:", dataset.class_counts)
+    print(f"generated {len(dataset.documents)} documents, {len(dataset.queries)} queries -> {args.out}/")
+    print("class distribution:", dataset.class_counts)
 
 
 if __name__ == "__main__":

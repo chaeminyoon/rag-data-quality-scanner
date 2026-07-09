@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 370" font-family="'Cascadia Code','D2Coding','Consolas','Courier New',monospace" font-size="13.5">
+<rect width="880" height="370" rx="10" fill="#0d1117" stroke="#30363d"/>
+<circle cx="24" cy="22" r="6" fill="#ff5f57"/><circle cx="44" cy="22" r="6" fill="#febc2e"/><circle cx="64" cy="22" r="6" fill="#28c840"/>
+<text x="440" y="26" text-anchor="middle" fill="#8b949e" font-size="12">rag-data-quality-scanner — failure diagnosis</text>
+<line x1="0" y1="40" x2="880" y2="40" stroke="#30363d"/>
+<text x="22" y="56" xml:space="preserve"><tspan fill="#3fb950">$ </tspan><tspan fill="#e6edf3">python scripts/benchmark.py --duplicate-threshold 0.92 --dedup-method embedding</tspan></text>
+<text x="22" y="77" xml:space="preserve"><tspan fill="#8b949e">loaded 222 documents / 60 queries</tspan></text>
+<text x="22" y="98" xml:space="preserve"><tspan fill="#8b949e">[scan+clean] </tspan><tspan fill="#ff7b72">222 → 38</tspan><tspan fill="#8b949e"> docs   (removed </tspan><tspan fill="#ff7b72">184</tspan><tspan fill="#8b949e">)</tspan></text>
+<text x="22" y="119" xml:space="preserve"><tspan fill="#e3b341">⚠  WARNING: </tspan><tspan fill="#e6edf3">cleaning destroyed every answer for </tspan><tspan fill="#ff7b72">35 queries</tspan></text>
+<text x="22" y="161" xml:space="preserve"><tspan fill="#8b949e">  original / dense + rerank    </tspan><tspan fill="#e6edf3">ndcg 0.984</tspan><tspan fill="#e6edf3">     recall 1.00</tspan></text>
+<text x="22" y="182" xml:space="preserve"><tspan fill="#8b949e">  cleaned  / dense + rerank    </tspan><tspan fill="#8b949e">ndcg </tspan><tspan fill="#ff7b72">0.404</tspan><tspan fill="#8b949e">     recall </tspan><tspan fill="#ff7b72">0.43</tspan></text>
+<text x="22" y="224" xml:space="preserve"><tspan fill="#8b949e">failure classification   </tspan><tspan fill="#e6edf3">cleaned → </tspan><tspan fill="#ff7b72">FP1 (missing content):  35 / 60</tspan></text>
+<text x="22" y="245" xml:space="preserve"><tspan fill="#8b949e">                         </tspan><tspan fill="#6e7681">over-aggressive dedup deleted the answers themselves</tspan></text>
+<text x="22" y="287" xml:space="preserve"><tspan fill="#6e7681"># 0.92 is calibrated for Cohere embeddings, not e5 — it over-merged 88% of the corpus</tspan></text>
+<text x="22" y="308" xml:space="preserve"><tspan fill="#6e7681"># the tool auto-classifies this as FP1 instead of silently degrading</tspan></text>
+<text x="22" y="350" xml:space="preserve"><tspan fill="#8b949e">report saved → </tspan><tspan fill="#79c0ff">reports/benchmark_moderate_embedding_k10.json</tspan></text>
+</svg>

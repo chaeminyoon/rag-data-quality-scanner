@@ -103,46 +103,46 @@ python scripts/benchmark.py --duplicate-threshold 0.92 --dedup-method embedding
 ## 아키텍처
 
 ```
-                    ┌──────────────────────────────────┐
-                    │  Streamlit UI  /  benchmark CLI  │
-                    └────────────────┬─────────────────┘
-                                     │
-        ┌──────────────┬─────────────┼──────────────┬──────────────┐
-        ▼              ▼             ▼              ▼              ▼
-   ┌─────────┐   ┌──────────┐   ┌─────────┐   ┌──────────┐   ┌─────────┐
-   │ INGEST  │   │ SCANNER  │   │ EVALGEN │   │EVALUATOR │   │RETRIEVAL│
-   │ CSV/PDF │   │ 2단계    │   │ 통제    │   │ 8셀      │   │ BM25    │
-   │ Chunker │   │ dedup    │   │ 평가셋  │   │ ablation │   │ RRF     │
-   │         │   │ 품질분석 │   │ 생성    │   │ FP분류   │   │ hybrid  │
-   │         │   │distractor│   │         │   │ CI       │   │         │
-   └─────────┘   └──────────┘   └─────────┘   └──────────┘   └─────────┘
-        │              │                           │              │
-        └──────────────┴────────────┬──────────────┴──────────────┘
-                                    │  추상화 인터페이스
-              ┌─────────────────────┼─────────────────────┐
-              ▼                     ▼                     ▼
-     ┌───────────────────┐  ┌──────────────┐      ┌──────────────┐
-     │ EmbeddingProvider │  │ VectorStore  │      │ BaseReranker │
-     ├───────────────────┤  ├──────────────┤      ├──────────────┤
-     │ local: e5 (기본)  │  │ local: numpy │      │ local: cross-│
-     │ cohere (선택)     │  │ (기본)       │      │ encoder (기본)│
-     │                   │  │ pinecone(선택)│      │ cohere (선택) │
-     └───────────────────┘  └──────────────┘      └──────────────┘
+문서 (CSV / PDF)
+   │
+   ▼
+[1] Ingest    ─── 로드 + 문장 청킹 → 문서
+   │
+   ▼
+[2] Scan      ─── 임베딩 · 2단계 dedup (MinHash → 코사인) · 품질 분석
+   │
+   ▼
+[3] Clean     ─── 중복 / 노이즈 제거, 정답은 보존
+   │
+   ▼
+[4] Index     ─── 벡터 스토어 + BM25
+   │
+   ▼
+[5] Retrieve  ─── dense · bm25 · hybrid (RRF)   ·   선택적 cross-encoder rerank
+   │
+   ▼
+[6] Evaluate  ─── 8-cell ablation · NDCG / MRR / recall · 부트스트랩 95% CI
+   │
+   ▼
+[7] Diagnose  ─── 실패 분류 (FP1 / FP2) · hard-distractor 분석
+   │
+   ▼
+리포트 (Markdown)
 ```
 
-## Demo (Streamlit UI)
+**교체 가능한 백엔드** — `scan · index · retrieve · rerank`는 공통 인터페이스로 백엔드를 결정합니다: **local**(기본값, 완전 오프라인 · API 키 불필요) 또는 **cohere / pinecone**(선택). `EmbeddingProvider`, `VectorStore`, `BaseReranker` 참고.
 
-### Step 1: Upload — PDF/CSV 업로드 (긴 PDF는 문장 단위 자동 청킹)
-<img src="docs/screenshots/step1_upload.gif" alt="Upload Demo" width="600"/>
+## CLI 실행 화면
 
-### Step 2: Quality Scan — 중복·품질 이슈 탐지와 클리닝
-<img src="docs/screenshots/step2_scan.gif" alt="Quality Scan Demo" width="600"/>
+한 번의 명령으로 스캔·클리닝·8-cell ablation 실행 후 라벨 기반 진단(dedup 정밀도/재현율,
+실패 분류, hard-distractor)까지 출력합니다 (API 키 불필요, 노트북 CPU 기준 약 40초):
 
-### Step 3: Benchmark — 클리닝 전후 검색 성능 비교
-<img src="docs/screenshots/step3_benchmark.gif" alt="Benchmark Demo" width="600"/>
+![benchmark run](docs/images/cli-benchmark.svg)
 
-### Step 4: Report — Markdown 리포트 다운로드
-<img src="docs/screenshots/step4_report.gif" alt="Report Demo" width="600"/>
+일부러 잘못된 중복 임계값을 주면 조용히 성능이 무너지는 대신, 도구가 그 피해를
+**FP1(정답 부재)로 자동 분류**하고 60개 쿼리 중 35개가 정답을 전부 잃었다고 알려줍니다:
+
+![failure diagnosis](docs/images/cli-failure-demo.svg)
 
 ## 프로젝트 구조
 

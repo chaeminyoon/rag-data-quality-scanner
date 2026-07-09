@@ -114,46 +114,48 @@ python scripts/benchmark.py --duplicate-threshold 0.92 --dedup-method embedding
 ## Architecture
 
 ```
-                    ┌──────────────────────────────────┐
-                    │  Streamlit UI  /  benchmark CLI  │
-                    └────────────────┬─────────────────┘
-                                     │
-        ┌──────────────┬─────────────┼──────────────┬──────────────┐
-        ▼              ▼             ▼              ▼              ▼
-   ┌─────────┐   ┌──────────┐   ┌─────────┐   ┌──────────┐   ┌─────────┐
-   │ INGEST  │   │ SCANNER  │   │ EVALGEN │   │EVALUATOR │   │RETRIEVAL│
-   │ CSV/PDF │   │ 2-stage  │   │ labeled │   │ 8-cell   │   │ BM25    │
-   │ Chunker │   │ dedup    │   │ eval set│   │ ablation │   │ RRF     │
-   │         │   │ quality  │   │ builder │   │ FP class │   │ hybrid  │
-   │         │   │distractor│   │         │   │ CIs      │   │         │
-   └─────────┘   └──────────┘   └─────────┘   └──────────┘   └─────────┘
-        │              │                           │              │
-        └──────────────┴────────────┬──────────────┴──────────────┘
-                                    │  abstraction interfaces
-              ┌─────────────────────┼─────────────────────┐
-              ▼                     ▼                     ▼
-     ┌───────────────────┐  ┌──────────────┐      ┌──────────────┐
-     │ EmbeddingProvider │  │ VectorStore  │      │ BaseReranker │
-     ├───────────────────┤  ├──────────────┤      ├──────────────┤
-     │ local: e5 (default)│ │ local: numpy │      │ local: cross-│
-     │ cohere (optional) │  │ (default)    │      │ encoder (def)│
-     │                   │  │ pinecone(opt)│      │ cohere (opt) │
-     └───────────────────┘  └──────────────┘      └──────────────┘
+Documents (CSV / PDF)
+   │
+   ▼
+[1] Ingest    ─── load + sentence-chunk → documents
+   │
+   ▼
+[2] Scan      ─── embed · 2-stage dedup (MinHash → cosine) · quality analysis
+   │
+   ▼
+[3] Clean     ─── drop duplicates / noise, keep answers
+   │
+   ▼
+[4] Index     ─── vector store + BM25
+   │
+   ▼
+[5] Retrieve  ─── dense · bm25 · hybrid (RRF)   ·   optional cross-encoder rerank
+   │
+   ▼
+[6] Evaluate  ─── 8-cell ablation · NDCG / MRR / recall · bootstrap 95% CI
+   │
+   ▼
+[7] Diagnose  ─── failure classification (FP1 / FP2) · hard-distractor analysis
+   │
+   ▼
+Report (Markdown)
 ```
 
-## Demo (Streamlit UI)
+**Swappable backends** — `scan · index · retrieve · rerank` each resolve a backend through a shared interface: **local** (default, fully offline — no API keys) or **cohere / pinecone** (optional). See `EmbeddingProvider`, `VectorStore`, `BaseReranker`.
 
-### Step 1: Upload — PDF/CSV upload (long PDFs are sentence-chunked automatically)
-<img src="docs/screenshots/step1_upload.gif" alt="Upload Demo" width="600"/>
+## CLI in action
 
-### Step 2: Quality Scan — duplicate & quality-issue detection, cleaning
-<img src="docs/screenshots/step2_scan.gif" alt="Quality Scan Demo" width="600"/>
+One command scans, cleans, runs the 8-cell ablation, and prints label-verified
+diagnostics — dedup precision/recall, failure classification, and hard-distractor
+analysis (no API keys, ~40 s on a laptop CPU):
 
-### Step 3: Benchmark — before/after retrieval comparison
-<img src="docs/screenshots/step3_benchmark.gif" alt="Benchmark Demo" width="600"/>
+![benchmark run](docs/images/cli-benchmark.svg)
 
-### Step 4: Report — Markdown report download
-<img src="docs/screenshots/step4_report.gif" alt="Report Demo" width="600"/>
+Feed it a deliberately wrong duplicate threshold and the tool doesn't silently
+degrade — it **auto-classifies the damage as FP1 (missing content)** and tells you
+35 of 60 queries just lost every answer:
+
+![failure diagnosis](docs/images/cli-failure-demo.svg)
 
 ## Project Structure
 
