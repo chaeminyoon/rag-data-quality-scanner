@@ -86,8 +86,8 @@ reproducible experiments:
 (multilingual e5) + an in-memory vector store — clone and run.
 
 ```bash
-git clone https://github.com/chaeminyoon/rag-data-quality-scanner.git
-cd rag-data-quality-scanner
+git clone https://github.com/chaeminyoon/RAG-Audit-Pipeline.git
+cd RAG-Audit-Pipeline
 pip install -r requirements.txt
 cp .env.example .env          # defaults (local backend) work as-is
 
@@ -165,7 +165,7 @@ label-verified cleaning quality, the full 8-cell ablation, and diagnostics:
 ## Project Structure
 
 ```
-rag-data-quality-scanner/
+RAG-Audit-Pipeline/
 ├── src/
 │   ├── main.py                  # Streamlit app
 │   ├── embeddings/              # EmbeddingProvider: local(e5) | cohere
